@@ -17,6 +17,8 @@ WORKDIR /var/www/html
 
 COPY . .
 
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache
+
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 CMD ["php-fpm"]

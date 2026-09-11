@@ -127,6 +127,34 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'content' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/content.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
+        'video' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/video.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
+        'publishing' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/publishing.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
+        'ai' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/ai.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
     ],
 
 ];
