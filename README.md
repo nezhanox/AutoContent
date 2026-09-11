@@ -10,12 +10,15 @@ Laravel-застосунок для автоматизованого вироб�
 ## Локальний запуск
 
 ```bash
+composer install
 cp .env.example .env
 php artisan key:generate
 docker compose up -d --build
 ```
 
 Застосунок доступний на http://localhost:8080, health-check — http://localhost:8080/up.
+
+> Примітка: контейнер `horizon` завершується з помилкою `Command "horizon" is not defined` до Phase 1 — пакет `laravel/horizon` ще не встановлено. Це очікувано.
 
 ## Тести
 

@@ -8,3 +8,7 @@ storage/framework/sessions
 storage/framework/views
 tests
 docs
+.env
+.env.backup
+.env.production
+.worktrees
