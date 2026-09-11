@@ -2955,6 +2955,7 @@ git commit -m "Add AnthropicLlmProvider"
 - Create: `app/Filament/Resources/SocialAccountResource.php` (+ generated Pages)
 - Create: `app/Filament/Resources/PublicationResource.php` (+ generated Pages)
 - Create: `app/Filament/Resources/VideoMetricResource.php` (+ generated Pages)
+- Create: `app/Filament/Resources/LlmUsageLogResource.php` (+ generated Pages)
 - Test: `tests/Feature/FilamentResourcesTest.php`
 
 **Interfaces:**
@@ -2975,12 +2976,12 @@ php artisan make:filament-resource Voiceover --generate
 php artisan make:filament-resource SocialAccount --generate
 php artisan make:filament-resource Publication --generate
 php artisan make:filament-resource VideoMetric --generate
+php artisan make:filament-resource LlmUsageLog --generate
 ```
 
-(`VideoMetric` — not `LlmUsageLog` — per TechnicalTask.md §14's `Analytics > Metrics`
-navigation group. `LlmUsageLog` has no Filament resource in this phase — it's an
-internal audit trail, not part of TechnicalTask.md §14's admin sections; Phase 5 can add
-one if the cost dashboard needs it.)
+(`LlmUsageLog` isn't one of TechnicalTask.md §14's named admin sections, but the Phase 1
+DoD in `ROADMAP.md` says "у Filament видно **всі розділи моделей**" with no carve-out —
+so all 11 models get a resource, not just the 10 TechnicalTask.md §14 names explicitly.)
 
 `--generate` inspects each table and scaffolds form fields and table columns
 automatically. Accept the generated output — no manual field-by-field customization is
@@ -3000,7 +3001,7 @@ class:
   `'Content Projects'`
 - `MediaAssetResource`, `VoiceoverResource` → `'Media'`
 - `SocialAccountResource`, `PublicationResource` → `'Publishing'`
-- `VideoMetricResource` → `'Analytics'`
+- `VideoMetricResource`, `LlmUsageLogResource` → `'Analytics'`
 
 - [ ] **Step 3: Write the reachability test**
 
@@ -3023,6 +3024,7 @@ class FilamentResourcesTest extends TestCase
     private array $resourceSlugs = [
         'content-projects', 'content-ideas', 'scripts', 'videos', 'video-scenes',
         'media-assets', 'voiceovers', 'social-accounts', 'publications', 'video-metrics',
+        'llm-usage-logs',
     ];
 
     public function test_every_resource_index_page_is_reachable_by_an_admin(): void
