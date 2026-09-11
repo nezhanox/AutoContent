@@ -8,6 +8,7 @@ use App\Domain\Llm\LlmResponse;
 use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Models\ContentProject;
 use App\Models\Enums\LlmUsageLogStatus;
+use App\Models\LlmUsageLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -35,14 +36,17 @@ class LlmManagerLoggingTest extends TestCase
 
         $this->assertSame('{"ok":true}', $response->content);
 
-        $this->assertDatabaseHas('llm_usage_logs', [
-            'content_project_id' => $project->id,
-            'purpose' => 'script',
-            'provider' => 'fake',
-            'prompt_tokens' => 100,
-            'completion_tokens' => 50,
-            'status' => LlmUsageLogStatus::Success->value,
-        ]);
+        $this->assertDatabaseCount('llm_usage_logs', 1);
+
+        $log = LlmUsageLog::sole();
+
+        $this->assertSame($project->id, $log->content_project_id);
+        $this->assertSame('script', $log->purpose);
+        $this->assertSame('fake', $log->provider);
+        $this->assertSame(100, $log->prompt_tokens);
+        $this->assertSame(50, $log->completion_tokens);
+        $this->assertSame(LlmUsageLogStatus::Success, $log->status);
+        $this->assertSame([], $log->metadata);
     }
 
     public function test_complete_logs_a_failed_call_and_rethrows(): void
@@ -67,12 +71,15 @@ class LlmManagerLoggingTest extends TestCase
         try {
             $manager->complete(null, 'idea', [['role' => 'user', 'content' => 'hi']]);
         } finally {
-            $this->assertDatabaseHas('llm_usage_logs', [
-                'purpose' => 'idea',
-                'provider' => 'fake',
-                'status' => LlmUsageLogStatus::Failed->value,
-                'error_message' => 'provider unavailable',
-            ]);
+            $this->assertDatabaseCount('llm_usage_logs', 1);
+
+            $log = LlmUsageLog::sole();
+
+            $this->assertSame('idea', $log->purpose);
+            $this->assertSame('fake', $log->provider);
+            $this->assertSame(LlmUsageLogStatus::Failed, $log->status);
+            $this->assertSame('provider unavailable', $log->error_message);
+            $this->assertSame([], $log->metadata);
         }
     }
 }

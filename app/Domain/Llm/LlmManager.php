@@ -48,30 +48,38 @@ class LlmManager implements LlmManagerInterface
         float $temperature = 0.7,
         ?int $maxTokens = null,
     ): LlmResponse {
-        $target = $this->resolve($project, $purpose, $providerOverride, $modelOverride);
-
-        $request = new LlmRequest(
-            purpose: $purpose,
-            messages: $messages,
-            responseSchema: $responseSchema,
-            model: $target->model,
-            temperature: $temperature,
-            maxTokens: $maxTokens,
-        );
-
         $startedAt = microtime(true);
+        $target = null;
 
         try {
+            $target = $this->resolve($project, $purpose, $providerOverride, $modelOverride);
+
+            $request = new LlmRequest(
+                purpose: $purpose,
+                messages: $messages,
+                responseSchema: $responseSchema,
+                model: $target->model,
+                temperature: $temperature,
+                maxTokens: $maxTokens,
+            );
+
             $response = $target->provider->complete($request);
-
-            $this->log($project, $purpose, $target, $response, $startedAt, LlmUsageLogStatus::Success);
-
-            return $response;
         } catch (Throwable $exception) {
-            $this->logFailure($project, $purpose, $target, $startedAt, $exception);
+            $this->logFailure(
+                $project,
+                $purpose,
+                $target?->providerName ?? $providerOverride,
+                $target?->model ?? $modelOverride,
+                $startedAt,
+                $exception,
+            );
 
             throw $exception;
         }
+
+        $this->log($project, $purpose, $target, $response, $startedAt);
+
+        return $response;
     }
 
     private function settingFor(?ContentProject $project, string $key, string $field): ?string
@@ -100,7 +108,6 @@ class LlmManager implements LlmManagerInterface
         ResolvedLlmTarget $target,
         LlmResponse $response,
         float $startedAt,
-        LlmUsageLogStatus $status,
     ): void {
         LlmUsageLog::create([
             'content_project_id' => $project?->id,
@@ -111,7 +118,7 @@ class LlmManager implements LlmManagerInterface
             'completion_tokens' => $response->completionTokens,
             'cost' => $this->estimateCost($target->providerName, $response),
             'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-            'status' => $status,
+            'status' => LlmUsageLogStatus::Success,
             'metadata' => [],
         ]);
     }
@@ -119,15 +126,16 @@ class LlmManager implements LlmManagerInterface
     private function logFailure(
         ?ContentProject $project,
         string $purpose,
-        ResolvedLlmTarget $target,
+        ?string $providerName,
+        ?string $model,
         float $startedAt,
         Throwable $exception,
     ): void {
         LlmUsageLog::create([
             'content_project_id' => $project?->id,
             'purpose' => $purpose,
-            'provider' => $target->providerName,
-            'model' => $target->model,
+            'provider' => $providerName ?? 'unknown',
+            'model' => $model ?? 'unknown',
             'prompt_tokens' => 0,
             'completion_tokens' => 0,
             'cost' => null,
@@ -142,7 +150,7 @@ class LlmManager implements LlmManagerInterface
     {
         $pricing = config("llm.providers.{$providerName}.models.{$response->model}");
 
-        if ($pricing === null) {
+        if ($pricing === null || ! isset($pricing['input_cost_per_1k'], $pricing['output_cost_per_1k'])) {
             return null;
         }
 

@@ -40,6 +40,7 @@ class LlmManagerTest extends TestCase
 
         $target = $manager->resolve($project, 'script');
 
+        $this->assertSame('fake', $target->providerName);
         $this->assertSame('purpose-specific-model', $target->model);
     }
 
@@ -56,6 +57,7 @@ class LlmManagerTest extends TestCase
 
         $target = $manager->resolve($project, 'idea');
 
+        $this->assertSame('fake', $target->providerName);
         $this->assertSame('project-default-model', $target->model);
     }
 
@@ -75,6 +77,27 @@ class LlmManagerTest extends TestCase
 
         $target = $manager->resolve($project, 'idea', modelOverride: 'explicit-model');
 
+        $this->assertSame('fake', $target->providerName);
         $this->assertSame('explicit-model', $target->model);
+    }
+
+    public function test_explicit_provider_override_wins_over_everything(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $project = new ContentProject(['settings' => [
+            'ai' => [
+                'default' => ['provider' => 'fake', 'model' => 'fake-model'],
+                'idea' => ['provider' => 'fake', 'model' => 'fake-model'],
+            ],
+        ]]);
+
+        $manager = new LlmManager(Container::getInstance());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('does-not-exist-provider');
+
+        $manager->resolve($project, 'idea', providerOverride: 'does-not-exist-provider');
     }
 }
