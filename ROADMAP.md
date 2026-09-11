@@ -12,21 +12,29 @@ plan, потім — реалізація і верифікація (`php artisa
 
 ---
 
-## Phase 0 — Bootstrap
+## Phase 0 — Bootstrap ✅ завершено (2026-09-11)
 
 Мета: підготувати репозиторій і оточення, без бізнес-логіки.
 
 Deliverables:
 
-* [ ] Git-репозиторій ініціалізовано, `.gitignore`, README-заглушка
-* [ ] `composer create-project laravel/laravel` (PHP 8.4+, Laravel 12+)
-* [ ] Docker Compose: `app`, `nginx`, `postgres`, `redis`, `worker`, `horizon`
+* [x] Git-репозиторій ініціалізовано, `.gitignore`, README-заглушка
+* [x] `composer create-project laravel/laravel` (PHP 8.4+, Laravel 12+)
+* [x] Docker Compose: `app`, `nginx`, `postgres`, `redis`, `worker`, `horizon`
       (розділ 22 ТЗ); FFmpeg доступний у `worker`
-* [ ] `.env.example` з усіма ключами з розділу 18 ТЗ (без значень)
-* [ ] Базова структура директорій під `app/Domain/...` (розділ 5, 25 ТЗ)
-* [ ] `php artisan test`, `php artisan pint` виконуються без помилок на порожньому проєкті
+* [x] `.env.example` з усіма ключами з розділу 18 ТЗ (без значень)
+* [x] Базова структура директорій під `app/Domain/...` (розділ 5, 25 ТЗ)
+* [x] `php artisan test`, `php artisan pint` виконуються без помилок на порожньому проєкті
 
-DoD: `docker compose up` піднімає застосунок, `/up` health-check відповідає 200.
+DoD: `docker compose up` піднімає застосунок, `/up` health-check відповідає 200. **Перевірено.**
+
+Spec: `docs/superpowers/specs/2026-09-11-phase0-bootstrap-design.md`
+Plan: `docs/superpowers/plans/2026-09-11-phase0-bootstrap.md`
+
+Відомі, свідомо відкладені до Phase 1 моменти (з фінального review):
+* `horizon`-контейнер завершується помилкою `Command "horizon" is not defined`, доки не встановлено `laravel/horizon` — очікувано, встановлення пакета належить Phase 1.
+* Немає Docker healthchecks/`depends_on: condition: service_healthy` — не заважає Phase 0, але Phase 1 (`migrate:fresh --seed`) може отримати race на старті стеку — варто додати тоді ж.
+* Тестова БД — стокова SQLite, тоді як застосунок працює на Postgres — потрібне свідоме рішення на старті Phase 1 (окрема test-БД на pgsql чи свідомо лишити SQLite і врахувати це в міграціях).
 
 ---
 
