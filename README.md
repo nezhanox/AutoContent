@@ -21,7 +21,15 @@ docker compose up -d --build
 
 ## Тести
 
+`php artisan test` потребує доступного Postgres за параметрами з `phpunit.xml`:
+хост `127.0.0.1`, порт `5432`, база `autocontent_testing`, користувач/пароль
+`autocontent`/`autocontent`. Перед запуском тестів піднімайте
+`docker compose up -d postgres redis` (за потреби перевизначте порти через
+`POSTGRES_HOST_PORT`/`REDIS_HOST_PORT`, якщо порти 5432/6379 вже зайняті на вашій
+машині — тоді передайте відповідний `DB_PORT` і в оточення тестів).
+
 ```bash
+docker compose up -d postgres redis
 php artisan test
 vendor/bin/pint --test
 ```
