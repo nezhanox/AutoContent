@@ -21,7 +21,7 @@ class GenerateVoiceoverJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public int $timeout = 180;
+    public int $timeout = 400;
 
     public int $tries = 3;
 

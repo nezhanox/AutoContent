@@ -4,6 +4,8 @@ namespace Tests\Feature\Jobs;
 
 use App\Domain\Video\Providers\FakeTtsProvider;
 use App\Domain\Video\TtsProviderInterface;
+use App\Domain\Video\VoiceResult;
+use App\Domain\Video\VoiceSettings;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
@@ -65,6 +67,32 @@ class GenerateVoiceoverJobTest extends TestCase
         $this->assertSame('audio-bytes', Storage::disk('local')->get($voiceover->file_path));
 
         $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
+    }
+
+    public function test_it_creates_no_voiceover_and_does_not_change_video_status_when_the_tts_call_fails(): void
+    {
+        Storage::fake('local');
+
+        $this->app->bind(TtsProviderInterface::class, function () {
+            return new class implements TtsProviderInterface
+            {
+                public function generate(string $text, VoiceSettings $settings): VoiceResult
+                {
+                    throw new \RuntimeException('ElevenLabs request failed: simulated failure');
+                }
+            };
+        });
+
+        $video = $this->videoWithScenesReadyForVoiceover();
+
+        $this->expectException(\RuntimeException::class);
+
+        try {
+            app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+        } finally {
+            $this->assertDatabaseCount('voiceovers', 0);
+            $this->assertSame(VideoStatus::ScriptGenerated, $video->fresh()->status);
+        }
     }
 
     public function test_it_is_a_no_op_when_the_video_status_is_not_script_generated(): void
