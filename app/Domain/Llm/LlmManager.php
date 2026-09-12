@@ -116,7 +116,7 @@ class LlmManager implements LlmManagerInterface
             'model' => $response->model,
             'prompt_tokens' => $response->promptTokens,
             'completion_tokens' => $response->completionTokens,
-            'cost' => $this->estimateCost($target->providerName, $response),
+            'cost' => $this->estimateCost($target->providerName, $target->model, $response),
             'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             'status' => LlmUsageLogStatus::Success,
             'metadata' => [],
@@ -146,9 +146,15 @@ class LlmManager implements LlmManagerInterface
         ]);
     }
 
-    private function estimateCost(string $providerName, LlmResponse $response): ?float
+    private function estimateCost(string $providerName, string $model, LlmResponse $response): ?float
     {
-        $pricing = config("llm.providers.{$providerName}.models.{$response->model}");
+        // NOTE: the model name is looked up as an array key rather than being
+        // interpolated into the dotted config path, because `config()` splits
+        // the whole string on `.` and model names may legitimately contain a
+        // dot (e.g. `claude-haiku-4.5`). The requested model (the alias that
+        // `config/llm.php` keys its pricing by) is used, not the model echoed
+        // back by the provider, which may be a dated snapshot id.
+        $pricing = config("llm.providers.{$providerName}.models")[$model] ?? null;
 
         if ($pricing === null || ! isset($pricing['input_cost_per_1k'], $pricing['output_cost_per_1k'])) {
             return null;

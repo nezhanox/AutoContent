@@ -49,6 +49,39 @@ class LlmManagerLoggingTest extends TestCase
         $this->assertSame([], $log->metadata);
     }
 
+    public function test_cost_is_estimated_for_a_model_whose_name_contains_a_dot(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model-4.5');
+
+        // The provider echoes back a dated snapshot id rather than the requested
+        // alias — pricing must still be resolved from the alias that was asked for.
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return new class extends FakeLlmProvider
+            {
+                public function complete(LlmRequest $request): LlmResponse
+                {
+                    return new LlmResponse(
+                        content: '{"ok":true}',
+                        provider: 'fake',
+                        model: $request->model.'-20260101',
+                        promptTokens: 100,
+                        completionTokens: 50,
+                    );
+                }
+            };
+        });
+
+        $manager = $this->app->make(LlmManagerInterface::class);
+        $manager->complete(null, 'script', [['role' => 'user', 'content' => 'hi']]);
+
+        $log = LlmUsageLog::sole();
+
+        // (100/1000 * 0.001) + (50/1000 * 0.005) = 0.00035
+        $this->assertNotNull($log->cost, 'Cost was not estimated for a dotted model name.');
+        $this->assertEqualsWithDelta(0.00035, (float) $log->cost, 0.0000001);
+    }
+
     public function test_complete_logs_a_failed_call_and_rethrows(): void
     {
         config()->set('llm.default_provider', 'fake');

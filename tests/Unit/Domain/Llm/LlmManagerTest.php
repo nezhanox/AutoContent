@@ -81,7 +81,29 @@ class LlmManagerTest extends TestCase
         $this->assertSame('explicit-model', $target->model);
     }
 
-    public function test_explicit_provider_override_wins_over_everything(): void
+    public function test_resolve_prefers_project_purpose_provider_over_project_default_provider(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $project = new ContentProject(['settings' => [
+            'ai' => [
+                'default' => ['provider' => 'fake'],
+                'script' => ['provider' => 'fake_secondary'],
+            ],
+        ]]);
+
+        $manager = new LlmManager(Container::getInstance());
+
+        $target = $manager->resolve($project, 'script');
+
+        // A genuinely different registered provider name, so a resolver that
+        // always fell back to the global default could not pass this.
+        $this->assertSame('fake_secondary', $target->providerName);
+        $this->assertSame('fake', $manager->resolve($project, 'idea')->providerName);
+    }
+
+    public function test_explicit_provider_override_value_is_used_even_when_unconfigured(): void
     {
         config()->set('llm.default_provider', 'fake');
         config()->set('llm.default_model', 'fake-model');

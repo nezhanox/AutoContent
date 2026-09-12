@@ -33,6 +33,20 @@ return [
             'driver' => FakeLlmProvider::class,
             'models' => [
                 'fake-model' => ['input_cost_per_1k' => 0, 'output_cost_per_1k' => 0],
+                // Dotted model name on purpose: mirrors real ids such as
+                // `claude-haiku-4.5` and guards the pricing lookup against
+                // being re-split on `.` by `config()`.
+                'fake-model-4.5' => ['input_cost_per_1k' => 0.001, 'output_cost_per_1k' => 0.005],
+            ],
+        ],
+
+        // Second registration of the same fake driver under a distinct name, so
+        // tests can prove the provider half of the priority chain really
+        // discriminates instead of always landing on the global default.
+        'fake_secondary' => [
+            'driver' => FakeLlmProvider::class,
+            'models' => [
+                'fake-model' => ['input_cost_per_1k' => 0, 'output_cost_per_1k' => 0],
             ],
         ],
     ],
