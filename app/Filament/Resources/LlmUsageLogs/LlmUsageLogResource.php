@@ -23,6 +23,12 @@ class LlmUsageLogResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Analytics';
 
+    public static function canCreate(): bool
+    {
+        // Append-only audit trail: rows are written by LlmManager, never by hand.
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return LlmUsageLogForm::configure($schema);

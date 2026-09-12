@@ -23,6 +23,12 @@ class VideoMetricResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Analytics';
 
+    public static function canCreate(): bool
+    {
+        // Append-only metrics ingestion: rows come from platform APIs, never by hand.
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return VideoMetricForm::configure($schema);

@@ -22,6 +22,9 @@ class LlmUsageLog extends Model
     {
         return [
             'status' => LlmUsageLogStatus::class,
+            // Postgres hands back `decimal` columns as untyped PHP strings via PDO;
+            // the cast pins them to the column's own precision.
+            'cost' => 'decimal:6',
             'metadata' => 'array',
         ];
     }
