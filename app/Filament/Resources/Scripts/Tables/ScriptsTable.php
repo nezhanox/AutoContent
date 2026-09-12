@@ -2,9 +2,14 @@
 
 namespace App\Filament\Resources\Scripts\Tables;
 
+use App\Jobs\GenerateScenesJob;
+use App\Models\Enums\ScriptStatus;
+use App\Models\Script;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -41,6 +46,16 @@ class ScriptsTable
                 //
             ])
             ->recordActions([
+                Action::make('generateScenes')
+                    ->label('Generate Scenes')
+                    ->visible(fn (Script $record): bool => $record->status === ScriptStatus::Completed
+                        && ! $record->videos()->exists())
+                    ->requiresConfirmation()
+                    ->action(function (Script $record): void {
+                        GenerateScenesJob::dispatch($record->id);
+
+                        Notification::make()->title('Scene generation queued')->success()->send();
+                    }),
                 ViewAction::make(),
             ])
             ->toolbarActions([
