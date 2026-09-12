@@ -149,20 +149,53 @@ Plan: `docs/superpowers/plans/2026-09-12-phase2-content.md`
 
 Deliverables:
 
-* [ ] `GenerateScenesService` → `VideoScene[]`
+Фаза розбита на під-фази (3a → 3b → 3c → 3d), кожна зі своїм spec/plan циклом —
+масштаб надто великий для одного spec/plan (шість практично незалежних підсистем).
+
+* [x] `GenerateScenesService` → `VideoScene[]` — **Phase 3a, завершено (2026-09-12)**
+      Spec: `docs/superpowers/specs/2026-09-12-phase3a-scenes-design.md`
+      Plan: `docs/superpowers/plans/2026-09-12-phase3a-scenes.md`
 * [ ] `MediaAsset` (локальні/stock assets), `AssetProviderInterface` (без прив'язки до
-      конкретного stock-провайдера, розділ 12 ТЗ)
+      конкретного stock-провайдера, розділ 12 ТЗ) — **Phase 3b**
 * [ ] `TtsProviderInterface` + `ElevenLabsTtsProvider`, `GenerateVoiceoverService`,
-      `GenerateVoiceoverJob`
+      `GenerateVoiceoverJob` — **Phase 3b**
 * [ ] Subtitles: Whisper як Python CLI worker, Laravel отримує structured JSON
-      (розділ 11 ТЗ), генерація ASS/SRT
+      (розділ 11 ТЗ), генерація ASS/SRT — **Phase 3c**
 * [ ] `VideoRendererInterface` + `FfmpegVideoRenderer` (Symfony Process, без хардкоду
-      параметрів — розділ 9–10 ТЗ), configurable vertical template
+      параметрів — розділ 9–10 ТЗ), configurable vertical template — **Phase 3d**
 * [ ] `RenderVideoJob`, `QualityCheckJob` (purpose=`quality_check` через `LlmManager`)
-* [ ] Feature-тести: scene generation, rendering pipeline (мокнутий FFmpeg/TTS/Whisper)
+      — **Phase 3d**
+* [ ] Feature-тести: scene generation (готово в 3a), rendering pipeline (мокнутий
+      FFmpeg/TTS/Whisper) — **3b/3c/3d**
 
 DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, subtitles, rendering,
-готовий `.mp4`, перегляд у Filament.
+готовий `.mp4`, перегляд у Filament. **3a закриває частину пункту 6** (Video Scenes) —
+решта DoD чекає на 3b/3c/3d.
+
+**Для Phase 3b — врахувати (з фінального review Phase 3a):**
+* `GenerateScenesService`'s LLM-промпт не передає project-контекст (niche/language/
+  tone/style), на відміну від `GenerateScriptService` — і зокрема не задає мову для
+  `visual_query`, який Phase 3b годуватиме у пошук stock-асетів; неанглійська мова
+  проєкту ймовірно дасть неанглійські search-запити.
+* `purpose='script'` (свідомо перевикористаний у 3a для генерації сцен) робить
+  script-генерацію і scene-генерацію нерозрізненими в `LlmUsageLog` — для Phase 5
+  аналітики варто додати дискримінатор (напр. `metadata['step']`) до накопичення
+  об'єму даних.
+* `visual_query`-валідація в `GenerateScenesService::parse()` використовує
+  `strlen()` (байти), а не `mb_strlen()` (символи) — надто строго для
+  багатобайтового UTF-8 тексту; не баг (ніколи не пропускає завелике значення в БД),
+  але вартує одного рядка на заміну, коли 3b торкнеться цієї валідації.
+
+**Для Phase 3d — врахувати (з фінального review Phase 3a):**
+* `VideoResource`'s форма (`app/Filament/Resources/Videos/Schemas/VideoForm.php`) не
+  має `->unique(ignoreRecord: true)` на `script_id` — після unique-індексу з 3a
+  дубльоване ручне створення `Video` через адмін-форму падає сирим 500 замість
+  валідаційного повідомлення. Той самий момент, коли `VideoResource`/
+  `VideoSceneResource` стануть view-only (за аналогією зі `ScriptResource` у Phase 2)
+  — природне місце це закрити.
+* Після кліку "Generate Scenes" рядок `Script` не дає негайного відгуку (кнопка не
+  ховається/не змінюється до завершення job) — косметична незручність, природно
+  закривається разом із загальним pipeline-статусом у 3d.
 
 ---
 
