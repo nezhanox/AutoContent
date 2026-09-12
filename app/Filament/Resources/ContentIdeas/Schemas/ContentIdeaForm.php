@@ -24,7 +24,8 @@ class ContentIdeaForm
                     ->required(),
                 TextInput::make('source_url')
                     ->url(),
-                TextInput::make('source_data'),
+                TextInput::make('source_data')
+                    ->disabled(),
                 TextInput::make('score')
                     ->numeric(),
                 Select::make('status')

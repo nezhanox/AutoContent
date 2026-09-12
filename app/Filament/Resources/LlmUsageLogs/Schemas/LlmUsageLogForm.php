@@ -41,7 +41,8 @@ class LlmUsageLogForm
                     ->columnSpanFull(),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
             ]);
     }
 }

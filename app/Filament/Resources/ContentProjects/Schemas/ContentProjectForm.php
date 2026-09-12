@@ -24,12 +24,14 @@ class ContentProjectForm
                     ->required(),
                 TextInput::make('target_platforms')
                     ->required()
-                    ->default('[]'),
+                    ->default('[]')
+                    ->disabled(),
                 TextInput::make('status')
                     ->required(),
                 TextInput::make('settings')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
             ]);
     }
 }

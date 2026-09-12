@@ -41,7 +41,8 @@ class VideoForm
                 TextInput::make('thumbnail_path'),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
                 Textarea::make('error_message')
                     ->columnSpanFull(),
             ]);

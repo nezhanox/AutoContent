@@ -38,7 +38,8 @@ class VideoSceneForm
                     ->numeric(),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
             ]);
     }
 }

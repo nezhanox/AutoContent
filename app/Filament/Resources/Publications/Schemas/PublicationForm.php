@@ -31,7 +31,8 @@ class PublicationForm
                     ->columnSpanFull(),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
             ]);
     }
 }

@@ -28,7 +28,8 @@ class VoiceoverForm
                     ->numeric(),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
                 TextInput::make('status')
                     ->required(),
             ]);

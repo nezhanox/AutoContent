@@ -42,7 +42,8 @@ class VideoMetricForm
                     ->numeric(),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
                 DateTimePicker::make('measured_at')
                     ->required(),
             ]);

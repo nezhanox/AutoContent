@@ -27,7 +27,8 @@ class SocialAccountForm
                 DateTimePicker::make('token_expires_at'),
                 TextInput::make('metadata')
                     ->required()
-                    ->default('{}'),
+                    ->default('{}')
+                    ->disabled(),
                 TextInput::make('status')
                     ->required(),
             ]);
