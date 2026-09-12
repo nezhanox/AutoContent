@@ -1,0 +1,119 @@
+<?php
+
+namespace Tests\Feature\Jobs;
+
+use App\Domain\Video\Providers\FakeTtsProvider;
+use App\Domain\Video\TtsProviderInterface;
+use App\Jobs\GenerateVoiceoverJob;
+use App\Models\ContentIdea;
+use App\Models\ContentProject;
+use App\Models\Enums\VideoStatus;
+use App\Models\Enums\VoiceoverStatus;
+use App\Models\Video;
+use App\Models\VideoScene;
+use App\Models\Voiceover;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class GenerateVoiceoverJobTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function videoWithScenesReadyForVoiceover(): Video
+    {
+        $project = ContentProject::factory()->create(['settings' => ['tts' => ['voice' => 'adam']]]);
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::ScriptGenerated,
+        ]);
+
+        VideoScene::factory()->create(['video_id' => $video->id, 'order' => 0, 'text' => 'Hello']);
+        VideoScene::factory()->create(['video_id' => $video->id, 'order' => 1, 'text' => 'world']);
+
+        return $video;
+    }
+
+    private function bindFakeTts(string $audio = 'audio-bytes'): void
+    {
+        $this->app->bind(TtsProviderInterface::class, function () use ($audio) {
+            return (new FakeTtsProvider)->respondWith($audio, 'elevenlabs', ['model_id' => 'eleven_multilingual_v2']);
+        });
+    }
+
+    public function test_it_creates_a_voiceover_and_writes_the_audio_file(): void
+    {
+        Storage::fake('local');
+        $this->bindFakeTts();
+
+        $video = $this->videoWithScenesReadyForVoiceover();
+
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+
+        $voiceover = Voiceover::where('video_id', $video->id)->sole();
+        $this->assertSame('elevenlabs', $voiceover->provider);
+        $this->assertSame('adam', $voiceover->voice);
+        $this->assertSame('Hello world', $voiceover->text);
+        $this->assertSame(VoiceoverStatus::Completed, $voiceover->status);
+        $this->assertSame("projects/{$video->content_project_id}/audio/{$video->id}.mp3", $voiceover->file_path);
+
+        Storage::disk('local')->assertExists($voiceover->file_path);
+        $this->assertSame('audio-bytes', Storage::disk('local')->get($voiceover->file_path));
+
+        $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
+    }
+
+    public function test_it_is_a_no_op_when_the_video_status_is_not_script_generated(): void
+    {
+        Storage::fake('local');
+        $this->bindFakeTts();
+
+        $project = ContentProject::factory()->create(['settings' => ['tts' => ['voice' => 'adam']]]);
+        $video = Video::factory()->create(['content_project_id' => $project->id, 'status' => VideoStatus::Draft]);
+
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+
+        $this->assertDatabaseCount('voiceovers', 0);
+    }
+
+    public function test_it_is_a_no_op_when_a_voiceover_already_exists(): void
+    {
+        Storage::fake('local');
+        $this->bindFakeTts();
+
+        $video = $this->videoWithScenesReadyForVoiceover();
+        Voiceover::factory()->create(['video_id' => $video->id, 'status' => 'completed']);
+
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+
+        $this->assertSame(1, Voiceover::where('video_id', $video->id)->count());
+    }
+
+    public function test_calling_handle_twice_does_not_create_a_duplicate_voiceover(): void
+    {
+        Storage::fake('local');
+        $this->bindFakeTts();
+
+        $video = $this->videoWithScenesReadyForVoiceover();
+
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+
+        $this->assertSame(1, Voiceover::where('video_id', $video->id)->count());
+    }
+
+    public function test_the_unique_index_prevents_a_second_voiceover_for_the_same_video_at_the_database_level(): void
+    {
+        $video = $this->videoWithScenesReadyForVoiceover();
+
+        Voiceover::factory()->create(['video_id' => $video->id]);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        Voiceover::factory()->create(['video_id' => $video->id]);
+    }
+}
