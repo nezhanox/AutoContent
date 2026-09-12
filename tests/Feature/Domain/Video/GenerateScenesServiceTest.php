@@ -1,0 +1,135 @@
+<?php
+
+namespace Tests\Feature\Domain\Video;
+
+use App\Domain\Llm\LlmManagerInterface;
+use App\Domain\Llm\LlmResponse;
+use App\Domain\Llm\Providers\FakeLlmProvider;
+use App\Domain\Llm\ResolvedLlmTarget;
+use App\Domain\Video\Exceptions\SceneGenerationFailedException;
+use App\Domain\Video\Services\GenerateScenesService;
+use App\Models\ContentProject;
+use App\Models\Script;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class GenerateScenesServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_it_returns_the_parsed_scenes_on_a_valid_first_response(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $manager = $this->queuedLlmManager([
+            '{"scenes":[{"type":"hook","duration":3,"visual_query":"a laptop","text":"Hi"},{"type":"cta","duration":2,"visual_query":null,"text":"Follow"}]}',
+        ]);
+
+        $service = new GenerateScenesService($manager);
+        $result = $service->generate($script, $target);
+
+        $this->assertSame([
+            ['type' => 'hook', 'duration' => 3, 'visual_query' => 'a laptop', 'text' => 'Hi'],
+            ['type' => 'cta', 'duration' => 2, 'visual_query' => null, 'text' => 'Follow'],
+        ], $result);
+    }
+
+    public function test_it_repairs_after_one_invalid_response(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $manager = $this->queuedLlmManager([
+            'not json at all',
+            '{"scenes":[{"type":"hook","duration":3,"visual_query":null,"text":"Hi"}]}',
+        ]);
+
+        $service = new GenerateScenesService($manager);
+        $result = $service->generate($script, $target);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('hook', $result[0]['type']);
+    }
+
+    public function test_it_throws_after_exhausting_repair_attempts(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $manager = $this->queuedLlmManager([
+            'not json',
+            'still not json',
+            'nope',
+        ]);
+
+        $service = new GenerateScenesService($manager);
+
+        $this->expectException(SceneGenerationFailedException::class);
+
+        $service->generate($script, $target);
+    }
+
+    public function test_it_rejects_a_scene_with_an_invalid_type(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $invalidType = '{"scenes":[{"type":"not-a-real-type","duration":3,"visual_query":null,"text":"Hi"}]}';
+
+        $manager = $this->queuedLlmManager([$invalidType, $invalidType, $invalidType]);
+
+        $service = new GenerateScenesService($manager);
+
+        $this->expectException(SceneGenerationFailedException::class);
+
+        $service->generate($script, $target);
+    }
+
+    public function test_it_rejects_an_empty_scenes_array(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $manager = $this->queuedLlmManager(['{"scenes":[]}', '{"scenes":[]}', '{"scenes":[]}']);
+
+        $service = new GenerateScenesService($manager);
+
+        $this->expectException(SceneGenerationFailedException::class);
+
+        $service->generate($script, $target);
+    }
+
+    /**
+     * @param  array<int, string>  $responses
+     */
+    private function queuedLlmManager(array $responses): LlmManagerInterface
+    {
+        return new class($responses) implements LlmManagerInterface
+        {
+            private int $index = 0;
+
+            /** @param array<int, string> $responses */
+            public function __construct(private array $responses) {}
+
+            public function resolve(?ContentProject $project, string $purpose, ?string $providerOverride = null, ?string $modelOverride = null): ResolvedLlmTarget
+            {
+                throw new \LogicException('Not used in this test.');
+            }
+
+            public function complete(?ContentProject $project, string $purpose, array $messages, ?array $responseSchema = null, ?string $providerOverride = null, ?string $modelOverride = null, float $temperature = 0.7, ?int $maxTokens = null): LlmResponse
+            {
+                $content = $this->responses[$this->index] ?? end($this->responses);
+                $this->index++;
+
+                return new LlmResponse(
+                    content: $content,
+                    provider: 'fake',
+                    model: 'fake-model',
+                    promptTokens: 10,
+                    completionTokens: 5,
+                );
+            }
+        };
+    }
+}
