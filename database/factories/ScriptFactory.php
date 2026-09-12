@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\ContentIdea;
+use App\Models\Enums\ScriptStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ScriptFactory extends Factory
@@ -18,7 +19,7 @@ class ScriptFactory extends Factory
             'hook' => fake()->sentence(),
             'estimated_duration' => fake()->numberBetween(30, 90),
             'metadata' => [],
-            'status' => 'completed',
+            'status' => ScriptStatus::Completed,
         ];
     }
 }

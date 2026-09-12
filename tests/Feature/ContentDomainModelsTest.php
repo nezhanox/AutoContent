@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Enums\ContentIdeaStatus;
+use App\Models\Enums\ScriptStatus;
 use App\Models\Script;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,6 +40,13 @@ class ContentDomainModelsTest extends TestCase
         $idea->delete();
 
         $this->assertDatabaseMissing('scripts', ['id' => $script->id]);
+    }
+
+    public function test_script_status_casts_to_enum(): void
+    {
+        $script = Script::factory()->create(['status' => ScriptStatus::Failed]);
+
+        $this->assertSame(ScriptStatus::Failed, $script->fresh()->status);
     }
 
     public function test_content_project_settings_cast_to_array(): void
