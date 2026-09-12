@@ -38,31 +38,61 @@ Plan: `docs/superpowers/plans/2026-09-11-phase0-bootstrap.md`
 
 ---
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation ✅ завершено (2026-09-12)
 
 Мета: домен, сховище, admin panel, базова AI-абстракція готові до підключення pipeline.
 
 Deliverables:
 
-* [ ] PostgreSQL, Redis, Horizon, Filament підключені й сконфігуровані
-* [ ] Усі моделі + міграції з розділу 4 ТЗ: `User`, `ContentProject`, `ContentIdea`,
+* [x] PostgreSQL, Redis, Horizon, Filament підключені й сконфігуровані
+* [x] Усі моделі + міграції з розділу 4 ТЗ: `User`, `ContentProject`, `ContentIdea`,
       `Script`, `Video`, `VideoScene`, `MediaAsset`, `Voiceover`, `SocialAccount`,
       `Publication`, `VideoMetric`, `LlmUsageLog`
-* [ ] Factories + Seeders для всіх моделей
-* [ ] `config/llm.php`: реєстр providers/models, дефолти, (опційно) ціна/1K токенів
-* [ ] `LlmProviderInterface::complete()`, `LlmRequest`/`LlmResponse` DTO (розділ 6.1 ТЗ)
-* [ ] `LlmManagerInterface` + резолвінг provider/model за пріоритетом
+* [x] Factories + Seeders для всіх моделей
+* [x] `config/llm.php`: реєстр providers/models, дефолти, ціна/1K токенів
+* [x] `LlmProviderInterface::complete()`, `LlmRequest`/`LlmResponse` DTO (розділ 6.1 ТЗ)
+* [x] `LlmManagerInterface` + резолвінг provider/model за пріоритетом
       override → project.settings.ai.<purpose> → project.settings.ai.default → .env
       (розділ 6.2 ТЗ)
-* [ ] `OpenAiLlmProvider`, `AnthropicLlmProvider` (мінімум 2 реальних), `FakeLlmProvider`
-      для тестів
-* [ ] Логування кожного виклику LLM у `LlmUsageLog`
-* [ ] Logging channels: `content`, `video`, `publishing`, `ai` (розділ 20 ТЗ)
-* [ ] Encrypted casts для `SocialAccount.access_token`/`refresh_token`
+* [x] `OpenAiLlmProvider`, `AnthropicLlmProvider` (2 реальних, через Laravel `Http`,
+      без SDK), `FakeLlmProvider` для тестів
+* [x] Логування кожного виклику LLM у `LlmUsageLog`
+* [x] Logging channels: `content`, `video`, `publishing`, `ai` (розділ 20 ТЗ)
+* [x] Encrypted casts для `SocialAccount.access_token`/`refresh_token`
 
-DoD: у Filament видно всі розділи моделей (read-only достатньо), можна створити
-`ContentProject` з `settings.ai` і отримати правильний resolved provider/model через unit-тест
-на `LlmManager` (з `FakeLlmProvider`, без реальних API-викликів).
+DoD: у Filament видно всі 11 розділів моделей; можна створити `ContentProject` з
+`settings.ai` і отримати правильний resolved provider/model через unit-тест на
+`LlmManager` (з `FakeLlmProvider`, без реальних API-викликів). **Перевірено** —
+33/33 тести, `pint`, `route:list`, `migrate:fresh --seed`, `docker compose up`
+(усі 6 сервісів, `horizon` більше не падає).
+
+Spec: `docs/superpowers/specs/2026-09-11-phase1-foundation-design.md`
+Plan: `docs/superpowers/plans/2026-09-11-phase1-foundation.md`
+
+**Для Phase 2 — врахувати (з фінального review Phase 1):**
+* `LlmRequest.responseSchema` наразі лише прапорець для OpenAI (`response_format:
+  json_object`) і повністю ігнорується `AnthropicLlmProvider`. Розділ 13 ТЗ
+  ("structured output + JSON-схема, retry/repair") вимагає реальної передачі схеми
+  в обох провайдерах — потрібно ретипізувати DTO (`?string` → `?array`) і додати
+  підтримку в кожного провайдера (OpenAI `json_schema`, Anthropic tool-use).
+* `LlmResponse.metadata` ніде не заповнюється провайдерами і не потрапляє в
+  `LlmUsageLog` (хардкод `[]`) — `finish_reason`/`stop_reason` знадобиться саме для
+  retry/repair-логіки з розділу 13.
+* Жоден провайдер не має явних `timeout()`/`retry()` — дефолтні 30с Laravel закороткі
+  для реальної генерації сценарію; розділ 19 ТЗ явно вимагає retry/timeout.
+* `videos.script_id`/`content_idea_id`/`description` — NOT NULL за дизайном (Video
+  створюється тільки після існування Script, узгоджено з NOT NULL `video_id` на
+  `VideoScene`/`Voiceover`). Якщо реальний дизайн `GenerateScriptJob`/
+  `GenerateScenesJob` потребуватиме "чернеткового" Video ще до Script — треба буде
+  одна ALTER-міграція.
+* `phpunit.xml` досі хардкодить `DB_HOST`/`DB_PORT=5432` — на машинах, де ці порти
+  зайняті іншим проєктом, тести мовчки підключаються не туди, якщо не виставити
+  `DB_PORT`/`DB_HOST` вручну (working, задокументовано в README, але не усунуто
+  структурно). Чисте рішення: прибрати ці два рядки з `phpunit.xml` і покладатись на
+  `.env.testing`.
+* `LlmUsageLog.cost` має `decimal:6` cast (фіксує точність), але Laravel повертає
+  decimal-cast як рядок, не float — якщо знадобиться справжній numeric-тип, потрібен
+  кастомний cast.
 
 ---
 
