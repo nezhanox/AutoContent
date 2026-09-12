@@ -16,4 +16,11 @@ class EditContentProject extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['settings'] = array_replace_recursive($this->record->settings ?? [], $data['settings'] ?? []);
+
+        return $data;
+    }
 }
