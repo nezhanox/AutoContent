@@ -2,9 +2,14 @@
 
 namespace App\Filament\Resources\Videos\Tables;
 
+use App\Jobs\GenerateVoiceoverJob;
+use App\Models\Enums\VideoStatus;
+use App\Models\Video;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -51,6 +56,16 @@ class VideosTable
                 //
             ])
             ->recordActions([
+                Action::make('generateVoiceover')
+                    ->label('Generate Voiceover')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::ScriptGenerated
+                        && ! $record->voiceover()->exists())
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        GenerateVoiceoverJob::dispatch($record->id);
+
+                        Notification::make()->title('Voiceover generation queued')->success()->send();
+                    }),
                 EditAction::make(),
             ])
             ->toolbarActions([
