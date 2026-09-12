@@ -100,6 +100,43 @@ class GenerateScenesServiceTest extends TestCase
         $service->generate($script, $target);
     }
 
+    public function test_it_rejects_a_non_positive_duration(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $invalidDuration = '{"scenes":[{"type":"hook","duration":0,"visual_query":null,"text":"Hi"}]}';
+
+        $manager = $this->queuedLlmManager([$invalidDuration, $invalidDuration, $invalidDuration]);
+
+        $service = new GenerateScenesService($manager);
+
+        $this->expectException(SceneGenerationFailedException::class);
+
+        $service->generate($script, $target);
+    }
+
+    public function test_it_rejects_a_visual_query_longer_than_255_characters(): void
+    {
+        $script = Script::factory()->create();
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $tooLong = json_encode(['scenes' => [[
+            'type' => 'hook',
+            'duration' => 3,
+            'visual_query' => str_repeat('a', 256),
+            'text' => 'Hi',
+        ]]]);
+
+        $manager = $this->queuedLlmManager([$tooLong, $tooLong, $tooLong]);
+
+        $service = new GenerateScenesService($manager);
+
+        $this->expectException(SceneGenerationFailedException::class);
+
+        $service->generate($script, $target);
+    }
+
     /**
      * @param  array<int, string>  $responses
      */

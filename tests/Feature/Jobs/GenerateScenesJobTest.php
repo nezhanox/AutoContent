@@ -141,9 +141,8 @@ class GenerateScenesJobTest extends TestCase
         config()->set('llm.default_provider', 'fake');
         config()->set('llm.default_model', 'fake-model');
 
-        $this->app->bind(FakeLlmProvider::class, function () {
-            return (new FakeLlmProvider)->respondWith($this->fakeScenesResponse());
-        });
+        $fake = (new FakeLlmProvider)->respondWith($this->fakeScenesResponse());
+        $this->app->instance(FakeLlmProvider::class, $fake);
 
         $script = $this->scriptWithCompletedStatus();
 
@@ -152,16 +151,14 @@ class GenerateScenesJobTest extends TestCase
         $video = Video::where('script_id', $script->id)->sole();
         $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
 
-        $this->app->bind(FakeLlmProvider::class, function () {
-            return (new FakeLlmProvider)->respondWith('not valid json, and will exhaust all repair attempts');
-        });
+        $fake->respondWith('not valid json, and will exhaust all repair attempts');
+
+        $this->expectException(SceneGenerationFailedException::class);
 
         try {
             app()->call([new GenerateScenesJob($script->id), 'handle']);
-        } catch (SceneGenerationFailedException $exception) {
-            // expected: GenerateScenesService exhausts its repair loop and throws
+        } finally {
+            $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
         }
-
-        $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -53,31 +54,33 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
         $idea = $script->contentIdea;
         $target = $llmManager->resolve($idea->contentProject, 'script');
 
-        $video = Video::firstOrCreate(
-            ['script_id' => $script->id],
-            [
-                'content_project_id' => $idea->content_project_id,
-                'content_idea_id' => $idea->id,
-                'title' => $script->metadata['title'] ?? $idea->title,
-                'description' => $script->hook,
-                'status' => VideoStatus::ScriptGenerated,
-            ]
-        );
-
         $scenes = $service->generate($script, $target);
 
-        $video->scenes()->delete();
+        DB::transaction(function () use ($script, $idea, $scenes) {
+            $video = Video::firstOrCreate(
+                ['script_id' => $script->id],
+                [
+                    'content_project_id' => $idea->content_project_id,
+                    'content_idea_id' => $idea->id,
+                    'title' => $script->metadata['title'] ?? $idea->title,
+                    'description' => $script->hook ?? '',
+                    'status' => VideoStatus::ScriptGenerated,
+                ]
+            );
 
-        foreach ($scenes as $order => $scene) {
-            VideoScene::create([
-                'video_id' => $video->id,
-                'order' => $order,
-                'type' => $scene['type'],
-                'duration' => $scene['duration'],
-                'text' => $scene['text'],
-                'visual_query' => $scene['visual_query'],
-            ]);
-        }
+            $video->scenes()->delete();
+
+            foreach ($scenes as $order => $scene) {
+                VideoScene::create([
+                    'video_id' => $video->id,
+                    'order' => $order,
+                    'type' => $scene['type'],
+                    'duration' => $scene['duration'],
+                    'text' => $scene['text'],
+                    'visual_query' => $scene['visual_query'],
+                ]);
+            }
+        });
     }
 
     public function failed(Throwable $exception): void

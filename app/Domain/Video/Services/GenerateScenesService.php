@@ -144,8 +144,16 @@ final class GenerateScenesService
                 throw new InvalidArgumentException("Scene [{$index}] field [duration] must be an integer.");
             }
 
+            if ($scene['duration'] < 1) {
+                throw new InvalidArgumentException("Scene [{$index}] field [duration] must be a positive integer.");
+            }
+
             if ($scene['visual_query'] !== null && ! is_string($scene['visual_query'])) {
                 throw new InvalidArgumentException("Scene [{$index}] field [visual_query] must be a string or null.");
+            }
+
+            if (is_string($scene['visual_query']) && strlen($scene['visual_query']) > 255) {
+                throw new InvalidArgumentException("Scene [{$index}] field [visual_query] must be 255 characters or fewer.");
             }
 
             if (! is_string($scene['text'])) {
