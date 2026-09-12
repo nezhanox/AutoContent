@@ -107,6 +107,38 @@ class GenerateScriptJobTest extends TestCase
         $this->assertSame(ScriptStatus::Completed, Script::where('content_idea_id', $idea->id)->sole()->status);
     }
 
+    public function test_it_resolves_provider_and_model_from_the_projects_script_settings(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return (new FakeLlmProvider)->respondWith(
+                json_encode(['title' => 'T', 'hook' => 'H', 'script' => 'Body', 'estimated_duration' => 55, 'cta' => 'Follow'])
+            );
+        });
+
+        $project = ContentProject::factory()->create([
+            'settings' => [
+                'ai' => [
+                    'script' => ['provider' => 'fake_secondary', 'model' => 'override-model'],
+                ],
+            ],
+        ]);
+
+        $idea = ContentIdea::factory()->create([
+            'status' => ContentIdeaStatus::Approved,
+            'content_project_id' => $project->id,
+        ]);
+
+        app()->call([new GenerateScriptJob($idea->id), 'handle']);
+
+        $script = Script::where('content_idea_id', $idea->id)->sole();
+        $this->assertSame('fake_secondary', $script->provider);
+        $this->assertSame('override-model', $script->model);
+        $this->assertSame(ScriptStatus::Completed, $script->status);
+    }
+
     public function test_failed_marks_the_script_failed_and_reverts_the_idea_to_approved(): void
     {
         $idea = ContentIdea::factory()->create(['status' => ContentIdeaStatus::Processing]);
