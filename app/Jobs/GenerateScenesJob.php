@@ -64,9 +64,9 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
             ]
         );
 
-        $video->scenes()->delete();
-
         $scenes = $service->generate($script, $target);
+
+        $video->scenes()->delete();
 
         foreach ($scenes as $order => $scene) {
             VideoScene::create([

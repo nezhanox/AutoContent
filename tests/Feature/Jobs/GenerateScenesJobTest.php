@@ -3,6 +3,7 @@
 namespace Tests\Feature\Jobs;
 
 use App\Domain\Llm\Providers\FakeLlmProvider;
+use App\Domain\Video\Exceptions\SceneGenerationFailedException;
 use App\Jobs\GenerateScenesJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
@@ -133,5 +134,34 @@ class GenerateScenesJobTest extends TestCase
             'content_idea_id' => $script->content_idea_id,
             'script_id' => $script->id,
         ]);
+    }
+
+    public function test_a_failed_regeneration_leaves_existing_scenes_untouched(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return (new FakeLlmProvider)->respondWith($this->fakeScenesResponse());
+        });
+
+        $script = $this->scriptWithCompletedStatus();
+
+        app()->call([new GenerateScenesJob($script->id), 'handle']);
+
+        $video = Video::where('script_id', $script->id)->sole();
+        $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
+
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return (new FakeLlmProvider)->respondWith('not valid json, and will exhaust all repair attempts');
+        });
+
+        try {
+            app()->call([new GenerateScenesJob($script->id), 'handle']);
+        } catch (SceneGenerationFailedException $exception) {
+            // expected: GenerateScenesService exhausts its repair loop and throws
+        }
+
+        $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
     }
 }
