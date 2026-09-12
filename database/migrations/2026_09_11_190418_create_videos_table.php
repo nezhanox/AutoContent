@@ -14,8 +14,11 @@ return new class extends Migration
         Schema::create('videos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('content_project_id')->constrained()->cascadeOnDelete();
+            $table->index('content_project_id');
             $table->foreignId('content_idea_id')->constrained()->cascadeOnDelete();
+            $table->index('content_idea_id');
             $table->foreignId('script_id')->constrained()->cascadeOnDelete();
+            $table->index('script_id');
             $table->string('title');
             $table->text('description');
             $table->string('status');
@@ -24,7 +27,7 @@ return new class extends Migration
             $table->unsignedInteger('height')->nullable();
             $table->string('file_path')->nullable();
             $table->string('thumbnail_path')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->text('error_message')->nullable();
             $table->timestamps();
         });

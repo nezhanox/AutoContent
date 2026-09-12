@@ -14,13 +14,14 @@ return new class extends Migration
         Schema::create('social_accounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('content_project_id')->constrained()->cascadeOnDelete();
+            $table->index('content_project_id');
             $table->string('platform');
             $table->string('external_account_id');
             $table->string('username');
             $table->text('access_token');
             $table->text('refresh_token')->nullable();
             $table->timestamp('token_expires_at')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->string('status');
             $table->timestamps();
         });

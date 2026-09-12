@@ -14,12 +14,13 @@ return new class extends Migration
         Schema::create('voiceovers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('video_id')->constrained()->cascadeOnDelete();
+            $table->index('video_id');
             $table->string('provider');
             $table->string('voice');
             $table->text('text');
             $table->string('file_path')->nullable();
             $table->unsignedInteger('duration')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->string('status');
             $table->timestamps();
         });

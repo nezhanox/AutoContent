@@ -14,11 +14,12 @@ return new class extends Migration
         Schema::create('content_ideas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('content_project_id')->constrained()->cascadeOnDelete();
+            $table->index('content_project_id');
             $table->string('title');
             $table->string('topic');
             $table->string('source');
             $table->string('source_url')->nullable();
-            $table->json('source_data')->nullable();
+            $table->jsonb('source_data')->nullable();
             $table->float('score')->nullable();
             $table->string('status');
             $table->timestamps();

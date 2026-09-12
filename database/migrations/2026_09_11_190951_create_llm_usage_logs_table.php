@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('llm_usage_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('content_project_id')->nullable()->constrained()->nullOnDelete();
+            $table->index('content_project_id');
             $table->string('purpose');
             $table->string('provider');
             $table->string('model');
@@ -23,7 +24,7 @@ return new class extends Migration
             $table->unsignedInteger('duration_ms');
             $table->string('status');
             $table->text('error_message')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->timestamp('created_at');
         });
     }

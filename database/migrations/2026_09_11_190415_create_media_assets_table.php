@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('width')->nullable();
             $table->unsignedInteger('height')->nullable();
             $table->unsignedInteger('duration')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->string('hash');
             $table->timestamps();
         });

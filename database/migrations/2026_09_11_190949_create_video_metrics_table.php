@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('video_metrics', function (Blueprint $table) {
             $table->id();
             $table->foreignId('publication_id')->constrained()->cascadeOnDelete();
+            $table->index('publication_id');
             $table->unsignedBigInteger('views')->default(0);
             $table->unsignedBigInteger('likes')->default(0);
             $table->unsignedBigInteger('comments')->default(0);
@@ -22,7 +23,7 @@ return new class extends Migration
             $table->unsignedInteger('watch_time')->nullable();
             $table->float('completion_rate')->nullable();
             $table->unsignedInteger('followers_gained')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->timestamp('measured_at');
             $table->timestamps();
         });

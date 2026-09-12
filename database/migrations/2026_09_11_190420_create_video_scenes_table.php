@@ -14,15 +14,17 @@ return new class extends Migration
         Schema::create('video_scenes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('video_id')->constrained()->cascadeOnDelete();
+            $table->index('video_id');
             $table->unsignedInteger('order');
             $table->string('type');
             $table->unsignedInteger('duration');
             $table->text('text');
             $table->string('visual_query')->nullable();
             $table->foreignId('asset_id')->nullable()->constrained('media_assets')->nullOnDelete();
+            $table->index('asset_id');
             $table->unsignedInteger('start_time')->nullable();
             $table->unsignedInteger('end_time')->nullable();
-            $table->json('metadata')->default('{}');
+            $table->jsonb('metadata')->default('{}');
             $table->timestamps();
         });
     }

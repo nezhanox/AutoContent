@@ -18,9 +18,9 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('niche');
             $table->string('language');
-            $table->json('target_platforms')->default('[]');
+            $table->jsonb('target_platforms')->default('[]');
             $table->string('status');
-            $table->json('settings')->default('{}');
+            $table->jsonb('settings')->default('{}');
             $table->timestamps();
         });
     }
