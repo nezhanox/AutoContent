@@ -19,13 +19,12 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:nRF1X+mb39mTJIF7qvvWxhkIH19fyaFKtcPrddJW4Yg="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="autocontent_testing"/>
         <env name="DB_USERNAME" value="autocontent"/>
         <env name="DB_PASSWORD" value="autocontent"/>
