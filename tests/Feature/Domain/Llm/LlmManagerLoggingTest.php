@@ -115,4 +115,34 @@ class LlmManagerLoggingTest extends TestCase
             $this->assertSame([], $log->metadata);
         }
     }
+
+    public function test_complete_persists_response_metadata(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return new class extends FakeLlmProvider
+            {
+                public function complete(LlmRequest $request): LlmResponse
+                {
+                    return new LlmResponse(
+                        content: '{"ok":true}',
+                        provider: 'fake',
+                        model: $request->model ?? 'fake-model',
+                        promptTokens: 10,
+                        completionTokens: 5,
+                        metadata: ['finish_reason' => 'stop', 'provider_finish_reason' => 'stop'],
+                    );
+                }
+            };
+        });
+
+        $manager = $this->app->make(LlmManagerInterface::class);
+        $manager->complete(null, 'script', [['role' => 'user', 'content' => 'hi']]);
+
+        $log = LlmUsageLog::sole();
+
+        $this->assertSame(['finish_reason' => 'stop', 'provider_finish_reason' => 'stop'], $log->metadata);
+    }
 }

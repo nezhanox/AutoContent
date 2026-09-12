@@ -42,7 +42,7 @@ class LlmManager implements LlmManagerInterface
         ?ContentProject $project,
         string $purpose,
         array $messages,
-        ?string $responseSchema = null,
+        ?array $responseSchema = null,
         ?string $providerOverride = null,
         ?string $modelOverride = null,
         float $temperature = 0.7,
@@ -119,7 +119,7 @@ class LlmManager implements LlmManagerInterface
             'cost' => $this->estimateCost($target->providerName, $target->model, $response),
             'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             'status' => LlmUsageLogStatus::Success,
-            'metadata' => [],
+            'metadata' => $response->metadata,
         ]);
     }
 

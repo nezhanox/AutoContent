@@ -15,12 +15,13 @@ interface LlmManagerInterface
 
     /**
      * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  array{name: string, schema: array<string, mixed>, strict?: bool}|null  $responseSchema
      */
     public function complete(
         ?ContentProject $project,
         string $purpose,
         array $messages,
-        ?string $responseSchema = null,
+        ?array $responseSchema = null,
         ?string $providerOverride = null,
         ?string $modelOverride = null,
         float $temperature = 0.7,
