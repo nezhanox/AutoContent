@@ -96,25 +96,50 @@ Plan: `docs/superpowers/plans/2026-09-11-phase1-foundation.md`
 
 ---
 
-## Phase 2 — Content
+## Phase 2 — Content ✅ завершено (2026-09-12)
 
 Мета: від ідеї до готового сценарію через реальний LLM, з можливістю перемикання моделі.
 
 Deliverables:
 
-* [ ] `GenerateContentIdeaService` (purpose=`idea`)
-* [ ] `GenerateScriptService` (purpose=`script`) — structured output + JSON-схема,
+* [x] `GenerateContentIdeaService` (purpose=`idea`)
+* [x] `GenerateScriptService` (purpose=`script`) — structured output + JSON-схема,
       retry/repair при невалідному JSON (розділ 13 ТЗ)
-* [ ] `GenerateScriptJob`: idempotent, retry, timeout, статуси pending/processing/
+* [x] `GenerateScriptJob`: idempotent, retry, timeout, статуси pending/processing/
       completed/failed (розділи 8, 19 ТЗ)
-* [ ] Filament: створення `ContentProject` (з `ai` config per purpose), `ContentIdea`,
+* [x] Filament: створення `ContentProject` (з `ai` config per purpose), `ContentIdea`,
       перегляд `Script`
-* [ ] Feature-тести: idea creation, script generation (мокнутий LLM), pipeline state
+* [x] Feature-тести: idea creation, script generation (мокнутий LLM), pipeline state
       transitions, provider abstraction (розділ 21 ТЗ)
 
 DoD: пункти 1–4 з Definition of Done (розділ 24 ТЗ) — можна створити Project → Idea →
 запустити генерацію → отримати `Script`, при цьому провайдер/модель беруться з
-`ContentProject.settings.ai.script`, а не хардкодяться.
+`ContentProject.settings.ai.script`, а не хардкодяться. **Перевірено** — 60/60 тестів,
+`pint`, `route:list`, `migrate:fresh --seed`, наскрізний тест підтверджує резолвінг
+provider/model саме з `settings.ai.script` (не з глобального дефолту).
+
+Spec: `docs/superpowers/specs/2026-09-12-phase2-content-design.md`
+Plan: `docs/superpowers/plans/2026-09-12-phase2-content.md`
+
+**Для Phase 3 — врахувати (з фінального review Phase 2):**
+* `ScriptResource::resolveRecordRouteBinding()` (фікс Postgres bigint vs non-numeric
+  route key → 500 замість 404) наразі точковий на одному ресурсі; той самий розрив є
+  на `/{record}/edit` кожного іншого ресурсу — вартує спільного guard'а в базовому
+  `Resource`, а не per-resource.
+* `GenerateScriptJob.$uniqueFor = 200` не покриває повний ланцюжок retry/backoff
+  (~900с у гіршому випадку) — сьогодні закрито лише видимістю кнопки у Filament, не
+  самою job; відкриється, якщо з'явиться недорожній dispatcher (напр. Phase 3
+  autopilot).
+* `ContentIdeaForm`'s `status` Select пропонує всі 5 `ContentIdeaStatus` без гарду —
+  адмін може вручну виставити `processing`/`used` і розсинхронити pipeline-стани.
+* `GenerateContentIdeaService` зберігає в `ContentIdea.source_data` розпарсений масив,
+  а не сиру LLM-відповідь — розходиться зі спек-вимогою "сира відповідь для аудиту".
+* Permanent job failure не дає користувачу видимого сигналу окрім логу —
+  `Notification::make()->sendToDatabase()` закрив би цю петлю.
+* `GenerateScriptService`'s repair-loop `providerOverride`/`modelOverride`-wiring не
+  має власного тесту, що відрізняв би його від збігу з `settings.ai.script`-фолбеком
+  (докладніше в review workspace, вже видаленому — суть: наскрізний DoD-тест ловить
+  регресію на рівні `Script`-рядка, але не саме це внутрішнє переналаштування).
 
 ---
 
