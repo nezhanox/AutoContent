@@ -101,9 +101,12 @@ class CollectVideoAssetsJobTest extends TestCase
         ]);
         $this->bindFakeAssets([]);
 
-        $this->expectException(AssetNotFoundException::class);
-
-        app()->call([new CollectVideoAssetsJob($video->id), 'handle']);
+        try {
+            app()->call([new CollectVideoAssetsJob($video->id), 'handle']);
+            $this->fail('Expected AssetNotFoundException was not thrown.');
+        } catch (AssetNotFoundException) {
+            // expected
+        }
 
         $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
     }
