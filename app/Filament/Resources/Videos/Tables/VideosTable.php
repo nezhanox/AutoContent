@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Videos\Tables;
 
+use App\Jobs\CollectVideoAssetsJob;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
@@ -65,6 +66,15 @@ class VideosTable
                         GenerateVoiceoverJob::dispatch($record->id);
 
                         Notification::make()->title('Voiceover generation queued')->success()->send();
+                    }),
+                Action::make('collectAssets')
+                    ->label('Collect Assets')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::VoiceGenerated)
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        CollectVideoAssetsJob::dispatch($record->id);
+
+                        Notification::make()->title('Asset collection queued')->success()->send();
                     }),
                 EditAction::make(),
             ])
