@@ -22,7 +22,12 @@ final class CollectVideoAssetsService
         $usedAssetIds = [];
 
         foreach ($video->scenes as $scene) {
-            if ($scene->visual_query === null || $scene->asset_id !== null) {
+            // asset_id !== null is defensive against manual/admin edits (e.g. someone
+            // hand-assigns a scene's asset via the VideoSceneResource edit form before
+            // this job runs) — it is not partial-failure recovery, since collect() is
+            // all-or-nothing (it throws before returning anything) and the job persists
+            // atomically in one transaction, so a genuinely partial prior run cannot exist.
+            if (blank($scene->visual_query) || $scene->asset_id !== null) {
                 continue;
             }
 

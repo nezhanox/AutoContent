@@ -84,6 +84,33 @@ class LocalAssetProviderTest extends TestCase
         $this->assertSame([], $results);
     }
 
+    public function test_it_strips_punctuation_when_tokenizing_the_query(): void
+    {
+        $asset = MediaAsset::factory()->create([
+            'type' => MediaAssetType::Video,
+            'metadata' => ['tags' => ['room']],
+        ]);
+
+        $provider = new LocalAssetProvider;
+        $results = $provider->search('a bustling server room, wide shot', new AssetSearchOptions(types: [MediaAssetType::Video]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame($asset->id, $results[0]->id);
+    }
+
+    public function test_it_treats_a_non_array_tags_value_as_no_match_instead_of_throwing(): void
+    {
+        $asset = MediaAsset::factory()->create([
+            'type' => MediaAssetType::Video,
+            'metadata' => ['tags' => 'not-an-array'],
+        ]);
+
+        $provider = new LocalAssetProvider;
+        $results = $provider->search('anything', new AssetSearchOptions(types: [MediaAssetType::Video]));
+
+        $this->assertSame([], $results);
+    }
+
     public function test_it_respects_max_results(): void
     {
         MediaAsset::factory()->count(3)->create([

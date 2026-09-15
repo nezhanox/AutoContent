@@ -32,8 +32,12 @@ class MediaAssetForm
                     ->numeric(),
                 TagsInput::make('metadata.tags')
                     ->label('Tags')
-                    ->helperText('Ключові слова для пошуку через LocalAssetProvider (порівнюються з visual_query сцени).')
+                    ->helperText('Ключові слова для пошуку через LocalAssetProvider (порівнюються з visual_query сцени). Використовуйте однослівні теги нижнього регістру — багатослівні теги ніколи не збігаються.')
                     ->separator(',')
+                    // Filament's TagsInput installs its own dehydrateStateUsing that joins the
+                    // array into a comma-separated string whenever a separator is set — this
+                    // override keeps the state a plain array so it round-trips through
+                    // metadata.tags correctly.
                     ->dehydrateStateUsing(fn ($state) => $state),
                 TextInput::make('hash')
                     ->required(),

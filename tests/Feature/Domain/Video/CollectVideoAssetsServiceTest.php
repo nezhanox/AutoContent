@@ -105,6 +105,24 @@ class CollectVideoAssetsServiceTest extends TestCase
         ], $assignments);
     }
 
+    public function test_it_skips_scenes_with_an_empty_string_visual_query(): void
+    {
+        $video = Video::factory()->create();
+
+        VideoScene::factory()->create([
+            'video_id' => $video->id,
+            'order' => 0,
+            'type' => VideoSceneType::Text,
+            'visual_query' => '',
+            'asset_id' => null,
+        ]);
+
+        $service = new CollectVideoAssetsService(new FakeAssetProvider);
+        $assignments = $service->collect($video->fresh(['scenes']));
+
+        $this->assertSame([], $assignments);
+    }
+
     public function test_it_throws_when_no_asset_matches_and_nothing_was_used_yet(): void
     {
         $video = Video::factory()->create();

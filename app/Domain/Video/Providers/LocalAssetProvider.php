@@ -40,7 +40,7 @@ final class LocalAssetProvider implements AssetProviderInterface
     {
         return array_values(array_filter(array_unique(array_map(
             static fn (string $word): string => mb_strtolower($word),
-            preg_split('/\s+/u', trim($text)) ?: []
+            preg_split('/[^\p{L}\p{N}]+/u', trim($text)) ?: []
         ))));
     }
 
@@ -49,9 +49,15 @@ final class LocalAssetProvider implements AssetProviderInterface
      */
     private function score(array $queryWords, MediaAsset $asset): int
     {
+        $tags = $asset->metadata['tags'] ?? [];
+
+        if (! is_array($tags)) {
+            return 0;
+        }
+
         $tags = array_map(
             static fn ($tag): string => mb_strtolower((string) $tag),
-            $asset->metadata['tags'] ?? []
+            $tags
         );
 
         return count(array_intersect($queryWords, $tags));
