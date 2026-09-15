@@ -162,27 +162,32 @@ Voiceover виявились незалежними підсистемами п�
       `GenerateVoiceoverJob` — **Phase 3b, завершено (2026-09-15)**
       Spec: `docs/superpowers/specs/2026-09-12-phase3b-voiceover-design.md`
       Plan: `docs/superpowers/plans/2026-09-12-phase3b-voiceover.md`
-* [ ] `MediaAsset` (локальні/stock assets), `AssetProviderInterface` (без прив'язки до
-      конкретного stock-провайдера, розділ 12 ТЗ) — **Phase 3c**
+* [x] `MediaAsset` (локальні/stock assets), `AssetProviderInterface` (без прив'язки до
+      конкретного stock-провайдера, розділ 12 ТЗ) — **Phase 3c, завершено (2026-09-16)**
+      Spec: `docs/superpowers/specs/2026-09-15-phase3c-assets-design.md`
+      Plan: `docs/superpowers/plans/2026-09-16-phase3c-assets.md`
 * [ ] Subtitles: Whisper як Python CLI worker, Laravel отримує structured JSON
       (розділ 11 ТЗ), генерація ASS/SRT — **Phase 3d**
 * [ ] `VideoRendererInterface` + `FfmpegVideoRenderer` (Symfony Process, без хардкоду
       параметрів — розділ 9–10 ТЗ), configurable vertical template — **Phase 3e**
 * [ ] `RenderVideoJob`, `QualityCheckJob` (purpose=`quality_check` через `LlmManager`)
       — **Phase 3e**
-* [ ] Feature-тести: scene generation (готово в 3a), voiceover (готово в 3b),
-      rendering pipeline (мокнутий FFmpeg/Whisper) — **3c/3d/3e**
+* [ ] Feature-тести: scene generation (готово в 3a), voiceover (готово в 3b), asset
+      collection (готово в 3c), rendering pipeline (мокнутий FFmpeg/Whisper) — **3d/3e**
 
 DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, subtitles, rendering,
 готовий `.mp4`, перегляд у Filament. **3a закриває частину пункту 6** (Video Scenes),
-**3b закриває пункт 5** (Voiceover) — решта DoD чекає на 3c/3d/3e.
+**3b закриває пункт 5** (Voiceover), **3c просуває пункт 6 далі** (сцени тепер мають
+`asset_id`) — решта DoD чекає на 3d/3e.
 
-**Для Phase 3c — врахувати (з фінального review Phase 3a; Assets переїхав з 3b у 3c
-під час брейнштормінгу 3b, тож ці пункти досі не закриті):**
+**Досі відкрито, без конкретної наступної фази (з фінального review Phase 3a; Assets
+переїхав з 3b у 3c під час брейнштормінгу 3b, але 3c не торкався
+`GenerateScenesService`, тож ці пункти лишаються не закритими):**
 * `GenerateScenesService`'s LLM-промпт не передає project-контекст (niche/language/
   tone/style), на відміну від `GenerateScriptService` — і зокрема не задає мову для
-  `visual_query`, який Phase 3c годуватиме у пошук stock-асетів; неанглійська мова
-  проєкту ймовірно дасть неанглійські search-запити.
+  `visual_query`, який Phase 3c використовує в пошуку локальних асетів за тегами;
+  неанглійська мова проєкту ймовірно дасть неанглійські search-запити, які не
+  збігатимуться з англомовними тегами бібліотеки (або навпаки).
 * `purpose='script'` (свідомо перевикористаний у 3a для генерації сцен) робить
   script-генерацію і scene-генерацію нерозрізненими в `LlmUsageLog` — для Phase 5
   аналітики варто додати дискримінатор (напр. `metadata['step']`) до накопичення
@@ -190,7 +195,33 @@ DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, 
 * `visual_query`-валідація в `GenerateScenesService::parse()` використовує
   `strlen()` (байти), а не `mb_strlen()` (символи) — надто строго для
   багатобайтового UTF-8 тексту; не баг (ніколи не пропускає завелике значення в БД),
-  але вартує одного рядка на заміну, коли 3c торкнеться цієї валідації.
+  але вартує одного рядка на заміну, коли хтось торкнеться цієї валідації.
+
+**Для Phase 3d/3e — врахувати (з фінального review Phase 3c):**
+* `MediaAssetsTable` (`app/Filament/Resources/MediaAssets/Tables/
+  MediaAssetsTable.php`) не показує колонку тегів — адмін не бачить, які теги вже
+  проставлені, не відкриваючи кожен запис окремо; природне місце закрити це разом із
+  рештою Filament-полірування у фінальній під-фазі Phase 3.
+* `AssetNotFoundException` — детермінована помилка (бібліотека не має відповідного
+  asset'а), але `CollectVideoAssetsJob` все одно ретраїть 3 рази з backoff — той
+  самий підхід, що вже є в `GenerateScenesJob`/`GenerateVoiceoverJob`
+  (детерміновані помилки не виокремлені від транзієнтних). Третій приклад цього
+  самого гепу — варто закрити одним пакетним фіксом для всіх трьох jobs, а не
+  точково.
+* Permanent job failure (усі три jobs) і далі не дає користувачу видимого сигналу
+  окрім логу — той самий, вже занотований з Phase 2, гап; `Notification::make()
+  ->sendToDatabase()` закрив би це для всього пайплайна разом.
+
+**Для Phase 6+ — врахувати (з фінального review Phase 3c, поза межами MVP-скоупу):**
+* `LocalAssetProvider::search()` не має `LIMIT` у запиті — скорує в PHP після
+  повного `->get()` по типу; прийнятно для MVP-обсягу локальної бібліотеки, але
+  варто мати на увазі поруч із реальними stock-провайдерами (Postgres `jsonb` GIN
+  індекс на `metadata->'tags'` з `?|` — природний апгрейд, без зміни інтерфейсу).
+* `MediaAssetForm`'s `TagsInput::make('metadata.tags')` перезаписує весь JSON
+  `metadata` при кожному save (Filament-форма "знає" лише про шлях `metadata.tags` і
+  обрізає решту) — сьогодні нешкідливо (нічого іншого не пише в цю колонку), але
+  стане реальною втратою даних, коли Phase 6 stock-провайдер почне зберігати
+  джерело/атрибуцію в тому самому `metadata`.
 
 **Для Phase 3e — врахувати (з фінального review Phase 3a):**
 * `VideoResource`'s форма (`app/Filament/Resources/Videos/Schemas/VideoForm.php`) не
