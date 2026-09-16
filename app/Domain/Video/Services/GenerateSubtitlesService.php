@@ -17,7 +17,7 @@ final class GenerateSubtitlesService
     public function generate(Video $video): array
     {
         $disk = Storage::disk(config('filesystems.default'));
-        $tempPath = tempnam(sys_get_temp_dir(), 'voiceover_').'.mp3';
+        $tempPath = sys_get_temp_dir().'/voiceover_'.uniqid().'.mp3';
 
         try {
             file_put_contents($tempPath, $disk->get($video->voiceover->file_path));
