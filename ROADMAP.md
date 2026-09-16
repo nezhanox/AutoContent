@@ -166,19 +166,24 @@ Voiceover виявились незалежними підсистемами п�
       конкретного stock-провайдера, розділ 12 ТЗ) — **Phase 3c, завершено (2026-09-16)**
       Spec: `docs/superpowers/specs/2026-09-15-phase3c-assets-design.md`
       Plan: `docs/superpowers/plans/2026-09-16-phase3c-assets.md`
-* [ ] Subtitles: Whisper як Python CLI worker, Laravel отримує structured JSON
-      (розділ 11 ТЗ), генерація ASS/SRT — **Phase 3d**
+* [x] Subtitles: Whisper як Python CLI worker, Laravel отримує structured JSON
+      (розділ 11 ТЗ), генерація SRT — **Phase 3d, завершено (2026-09-16)**
+      Spec: `docs/superpowers/specs/2026-09-16-phase3d-subtitles-design.md`
+      Plan: `docs/superpowers/plans/2026-09-16-phase3d-subtitles.md`
 * [ ] `VideoRendererInterface` + `FfmpegVideoRenderer` (Symfony Process, без хардкоду
-      параметрів — розділ 9–10 ТЗ), configurable vertical template — **Phase 3e**
+      параметрів — розділ 9–10 ТЗ), configurable vertical template, ASS-стилізація
+      субтитрів (шрифт/позиція/розмір/margins з розділу 10 ТЗ) — **Phase 3e**
 * [ ] `RenderVideoJob`, `QualityCheckJob` (purpose=`quality_check` через `LlmManager`)
       — **Phase 3e**
 * [ ] Feature-тести: scene generation (готово в 3a), voiceover (готово в 3b), asset
-      collection (готово в 3c), rendering pipeline (мокнутий FFmpeg/Whisper) — **3d/3e**
+      collection (готово в 3c), subtitle generation (готово в 3d), rendering pipeline
+      (мокнутий FFmpeg) — **3e**
 
 DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, subtitles, rendering,
 готовий `.mp4`, перегляд у Filament. **3a закриває частину пункту 6** (Video Scenes),
 **3b закриває пункт 5** (Voiceover), **3c просуває пункт 6 далі** (сцени тепер мають
-`asset_id`) — решта DoD чекає на 3d/3e.
+`asset_id`), **3d закриває пункт 7** (subtitles, у форматі SRT — ASS зі стилізацією
+залишено 3e) — решта DoD чекає на 3e.
 
 **Досі відкрито, без конкретної наступної фази (з фінального review Phase 3a; Assets
 переїхав з 3b у 3c під час брейнштормінгу 3b, але 3c не торкався
@@ -197,20 +202,49 @@ DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, 
   багатобайтового UTF-8 тексту; не баг (ніколи не пропускає завелике значення в БД),
   але вартує одного рядка на заміну, коли хтось торкнеться цієї валідації.
 
-**Для Phase 3d/3e — врахувати (з фінального review Phase 3c):**
+**Для Phase 3e — врахувати (з фінального review Phase 3c, ще не закрито в 3d):**
 * `MediaAssetsTable` (`app/Filament/Resources/MediaAssets/Tables/
   MediaAssetsTable.php`) не показує колонку тегів — адмін не бачить, які теги вже
   проставлені, не відкриваючи кожен запис окремо; природне місце закрити це разом із
   рештою Filament-полірування у фінальній під-фазі Phase 3.
 * `AssetNotFoundException` — детермінована помилка (бібліотека не має відповідного
   asset'а), але `CollectVideoAssetsJob` все одно ретраїть 3 рази з backoff — той
-  самий підхід, що вже є в `GenerateScenesJob`/`GenerateVoiceoverJob`
-  (детерміновані помилки не виокремлені від транзієнтних). Третій приклад цього
-  самого гепу — варто закрити одним пакетним фіксом для всіх трьох jobs, а не
-  точково.
-* Permanent job failure (усі три jobs) і далі не дає користувачу видимого сигналу
-  окрім логу — той самий, вже занотований з Phase 2, гап; `Notification::make()
+  самий підхід, що вже є в `GenerateScenesJob`/`GenerateVoiceoverJob`/
+  `GenerateSubtitlesJob` (детерміновані помилки не виокремлені від транзієнтних).
+  Четвертий приклад цього самого гепу — варто закрити одним пакетним фіксом для всіх
+  jobs, а не точково.
+* Permanent job failure (усі jobs пайплайна) і далі не дає користувачу видимого
+  сигналу окрім логу — той самий, вже занотований з Phase 2, гап; `Notification::make()
   ->sendToDatabase()` закрив би це для всього пайплайна разом.
+
+**Для Phase 3e — врахувати (з фінального review Phase 3d):**
+* **Архітектурний гап, критичний для 3e**: `docker-compose.yml` має два незалежні
+  споживачі однієї Redis-черги `default` — `worker` (свій `docker/worker/Dockerfile`
+  з ffmpeg/Python/faster-whisper) і `horizon` (`docker/php/Dockerfile`, без цих
+  залежностей). У 3d це вже спричинило реальний баг (`GenerateSubtitlesJob` міг
+  дістатись `horizon` і впасти з "python3: not found") — закрито точково через
+  виділену чергу `whisper`, яку слухає лише `worker`
+  (`app/Jobs/GenerateSubtitlesJob.php`'s `onQueue('whisper')`,
+  `docker/worker/Dockerfile`'s `--queue=whisper,default`). **`FfmpegVideoRenderer`
+  матиме той самий бінарний-залежний профіль** (ffmpeg вже є лише в `worker`) — або
+  дати `RenderVideoJob` свою чергу за тим самим патерном, або нарешті вирішити
+  архітектурне дублювання worker/horizon одним махом замість точкового патчингу
+  для кожної нової фази.
+* `Redis` `retry_after` (90с за замовчуванням, `.env.example` тепер піднято до 700с
+  через `REDIS_QUEUE_RETRY_AFTER`) має лишатись вищим за найдовший job timeout у
+  пайплайні — `RenderVideoJob`'s FFmpeg-виклик, ймовірно, буде довшим за
+  `GenerateSubtitlesJob`'s 650с; варто перевірити це співвідношення, коли з'явиться
+  реальний timeout рендерингу.
+* `WhisperCliTranscriptionProvider::transcribe()` не перевіряє наявність ключів
+  `start`/`end`/`text` у сегменті — malformed-but-valid JSON кине undefined-array-key
+  `Error` замість `RuntimeException`; дрібниця, не викликана жодним обов'язковим
+  сценарієм, але варта одного рядка захисту, якщо колись торкнешся цього файлу.
+* Відео без жодного мовленнєвого сегмента (тиша/музика) сьогодні "успішно" отримує
+  нульовий `.srt`-файл і `Video.subtitle_id`, після чого кнопка "Generate Subtitles"
+  ховається назавжди — відновлення можливе лише вручну через БД. Свідомо не
+  закрито в 3d (це легітимний випадок, не завжди помилка) — але `RenderVideoJob`
+  доведеться явно обробити порожній/відсутній subtitle-трек при burn-in, тож варто
+  вирішити цей edge case саме там, а не вважати його вже закритим.
 
 **Для Phase 6+ — врахувати (з фінального review Phase 3c, поза межами MVP-скоупу):**
 * `LocalAssetProvider::search()` не має `LIMIT` у запиті — скорує в PHP після
