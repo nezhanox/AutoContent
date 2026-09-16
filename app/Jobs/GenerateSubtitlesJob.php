@@ -27,7 +27,10 @@ class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 700;
 
-    public function __construct(public readonly int $videoId) {}
+    public function __construct(public readonly int $videoId)
+    {
+        $this->onQueue('whisper');
+    }
 
     public function uniqueId(): string
     {
@@ -46,7 +49,7 @@ class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
     {
         $video = Video::with(['voiceover', 'contentProject'])->findOrFail($this->videoId);
 
-        if ($video->status !== VideoStatus::AssetsReady || $video->subtitle_id !== null) {
+        if ($video->status !== VideoStatus::AssetsReady || $video->subtitle_id !== null || $video->voiceover === null) {
             return;
         }
 
@@ -61,7 +64,10 @@ class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
                 'provider' => 'whisper',
                 'path' => $path,
                 'mime_type' => 'application/x-subrip',
-                'metadata' => ['segments' => $result['segments'], 'language' => $result['language']],
+                'metadata' => array_merge(
+                    ['segments' => $result['segments'], 'language' => $result['language']],
+                    $result['metadata']
+                ),
                 'hash' => hash('sha256', $result['srt']),
             ]);
 

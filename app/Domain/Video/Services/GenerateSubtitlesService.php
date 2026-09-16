@@ -6,6 +6,7 @@ use App\Domain\Video\Support\SrtFormatter;
 use App\Domain\Video\TranscriptionProviderInterface;
 use App\Models\Video;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 final class GenerateSubtitlesService
 {
@@ -20,7 +21,10 @@ final class GenerateSubtitlesService
         $tempPath = sys_get_temp_dir().'/voiceover_'.uniqid().'.mp3';
 
         try {
-            file_put_contents($tempPath, $disk->get($video->voiceover->file_path));
+            $audio = $disk->get($video->voiceover->file_path)
+                ?? throw new RuntimeException("Voiceover audio missing at {$video->voiceover->file_path}");
+
+            file_put_contents($tempPath, $audio);
             $result = $this->transcriptionProvider->transcribe($tempPath, $video->contentProject->language);
         } finally {
             if (is_file($tempPath)) {
@@ -32,6 +36,7 @@ final class GenerateSubtitlesService
             'segments' => $result->segments,
             'language' => $result->language,
             'srt' => SrtFormatter::format($result->segments),
+            'metadata' => $result->metadata,
         ];
     }
 }

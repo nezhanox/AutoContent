@@ -42,4 +42,13 @@ class SrtFormatterTest extends TestCase
     {
         $this->assertSame('', SrtFormatter::format([]));
     }
+
+    public function test_it_carries_a_rounded_up_millisecond_into_the_next_second(): void
+    {
+        $srt = SrtFormatter::format([
+            ['start' => 29.999999999999996, 'end' => 30.5, 'text' => 'Rounds up'],
+        ]);
+
+        $this->assertSame("1\n00:00:30,000 --> 00:00:30,500\nRounds up\n", $srt);
+    }
 }
