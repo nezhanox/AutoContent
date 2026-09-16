@@ -16,7 +16,7 @@ class Video extends Model
     protected $fillable = [
         'content_project_id', 'content_idea_id', 'script_id', 'title', 'description',
         'status', 'duration', 'width', 'height', 'file_path', 'thumbnail_path',
-        'metadata', 'error_message',
+        'subtitle_id', 'metadata', 'error_message',
     ];
 
     protected function casts(): array
@@ -50,6 +50,11 @@ class Video extends Model
     public function voiceover(): HasOne
     {
         return $this->hasOne(Voiceover::class);
+    }
+
+    public function subtitle(): BelongsTo
+    {
+        return $this->belongsTo(MediaAsset::class, 'subtitle_id');
     }
 
     public function publications(): HasMany
