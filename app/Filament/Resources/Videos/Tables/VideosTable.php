@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Videos\Tables;
 
 use App\Jobs\CollectVideoAssetsJob;
+use App\Jobs\GenerateSubtitlesJob;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
@@ -75,6 +76,16 @@ class VideosTable
                         CollectVideoAssetsJob::dispatch($record->id);
 
                         Notification::make()->title('Asset collection queued')->success()->send();
+                    }),
+                Action::make('generateSubtitles')
+                    ->label('Generate Subtitles')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::AssetsReady
+                        && $record->subtitle_id === null)
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        GenerateSubtitlesJob::dispatch($record->id);
+
+                        Notification::make()->title('Subtitle generation queued')->success()->send();
                     }),
                 EditAction::make(),
             ])
