@@ -5,6 +5,7 @@ use App\Providers\AssetServiceProvider;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Providers\HorizonServiceProvider;
 use App\Providers\LlmServiceProvider;
+use App\Providers\TranscriptionServiceProvider;
 use App\Providers\TtsServiceProvider;
 
 return [
@@ -14,4 +15,5 @@ return [
     LlmServiceProvider::class,
     TtsServiceProvider::class,
     AssetServiceProvider::class,
+    TranscriptionServiceProvider::class,
 ];
