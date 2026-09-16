@@ -23,8 +23,7 @@ final class WhisperCliTranscriptionProvider implements TranscriptionProviderInte
             $command[] = $language;
         }
 
-        $timeout = (int) (config('whisper.timeout') ?? 600);
-        $result = Process::timeout($timeout)->run($command);
+        $result = Process::timeout(config('whisper.timeout'))->run($command);
 
         if ($result->failed()) {
             throw new RuntimeException(
