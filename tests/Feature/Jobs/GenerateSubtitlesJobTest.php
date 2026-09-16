@@ -58,7 +58,7 @@ class GenerateSubtitlesJobTest extends TestCase
         $subtitle = MediaAsset::where('type', MediaAssetType::Subtitle)->sole();
         $this->assertSame('whisper', $subtitle->provider);
         $this->assertSame('application/x-subrip', $subtitle->mime_type);
-        $this->assertSame([['start' => 0.0, 'end' => 1.0, 'text' => 'Hi']], $subtitle->metadata['segments']);
+        $this->assertEquals([['start' => 0.0, 'end' => 1.0, 'text' => 'Hi']], $subtitle->metadata['segments']);
         $this->assertSame('en', $subtitle->metadata['language']);
 
         $expectedPath = "projects/{$video->content_project_id}/subtitles/{$video->id}.srt";

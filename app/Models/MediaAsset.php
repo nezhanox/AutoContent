@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Casts\MetadataCast;
 use App\Models\Enums\MediaAssetType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +20,7 @@ class MediaAsset extends Model
     {
         return [
             'type' => MediaAssetType::class,
-            'metadata' => MetadataCast::class,
+            'metadata' => 'array',
         ];
     }
 
