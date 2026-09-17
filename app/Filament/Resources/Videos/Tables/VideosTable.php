@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Videos\Tables;
 use App\Jobs\CollectVideoAssetsJob;
 use App\Jobs\GenerateSubtitlesJob;
 use App\Jobs\GenerateVoiceoverJob;
+use App\Jobs\QualityCheckVideoJob;
+use App\Jobs\RenderVideoJob;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use Filament\Actions\Action;
@@ -86,6 +88,25 @@ class VideosTable
                         GenerateSubtitlesJob::dispatch($record->id);
 
                         Notification::make()->title('Subtitle generation queued')->success()->send();
+                    }),
+                Action::make('renderVideo')
+                    ->label('Render Video')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::AssetsReady
+                        && $record->subtitle_id !== null)
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        RenderVideoJob::dispatch($record->id);
+
+                        Notification::make()->title('Rendering queued')->success()->send();
+                    }),
+                Action::make('checkQuality')
+                    ->label('Check Quality')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::Rendered)
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        QualityCheckVideoJob::dispatch($record->id);
+
+                        Notification::make()->title('Quality check queued')->success()->send();
                     }),
                 EditAction::make(),
             ])
