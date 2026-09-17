@@ -13,7 +13,8 @@ final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
     public function check(Video $video): QualityCheckResult
     {
         $disk = Storage::disk(config('filesystems.default'));
-        $tempPath = tempnam(sys_get_temp_dir(), 'qc_').'.mp4';
+        $stub = tempnam(sys_get_temp_dir(), 'qc_');
+        $tempPath = $stub.'.mp4';
 
         try {
             file_put_contents($tempPath, $disk->get($video->file_path));
@@ -38,6 +39,9 @@ final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
         } finally {
             if (is_file($tempPath)) {
                 unlink($tempPath);
+            }
+            if (is_file($stub)) {
+                unlink($stub);
             }
         }
     }

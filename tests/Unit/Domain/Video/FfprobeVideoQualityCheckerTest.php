@@ -30,6 +30,23 @@ class FfprobeVideoQualityCheckerTest extends TestCase
         return $video->fresh('scenes');
     }
 
+    private function buildRenderedVideoWithScenes(int $sceneCount, float $sceneDuration): Video
+    {
+        $project = ContentProject::factory()->create();
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'file_path' => "projects/{$project->id}/renders/video.mp4",
+        ]);
+
+        for ($i = 0; $i < $sceneCount; $i++) {
+            VideoScene::factory()->create(['video_id' => $video->id, 'duration' => $sceneDuration]);
+        }
+
+        Storage::disk(config('filesystems.default'))->put($video->file_path, 'fake-rendered-bytes');
+
+        return $video->fresh('scenes');
+    }
+
     private function fakeProbeAndBlackdetect(array $probeOverrides = [], string $blackdetectErrorOutput = ''): void
     {
         $probe = array_merge([
@@ -104,6 +121,22 @@ class FfprobeVideoQualityCheckerTest extends TestCase
 
         $this->assertFalse($result->passed);
         $this->assertFalse($result->checks['duration_within_tolerance']);
+    }
+
+    public function test_it_uses_the_xfade_adjusted_duration_not_the_naive_scene_sum(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        // 10 scenes x 3s = 30s naive sum. With default transition duration 0.5s,
+        // the xfade-adjusted expected duration is 30 - (10-1)*0.5 = 25.5s.
+        // Naive formula: abs(25.5 - 30) = 4.5 > 2.0 tolerance -> would FAIL.
+        // Corrected formula: abs(25.5 - 25.5) = 0.0 <= 2.0 tolerance -> PASSES.
+        $this->fakeProbeAndBlackdetect(['format' => ['duration' => '25.5']]);
+
+        $video = $this->buildRenderedVideoWithScenes(sceneCount: 10, sceneDuration: 3);
+        $result = (new FfprobeVideoQualityChecker)->check($video);
+
+        $this->assertTrue($result->checks['duration_within_tolerance']);
+        $this->assertTrue($result->passed);
     }
 
     public function test_it_fails_black_frame_check_when_blackdetect_reports_black_start(): void
