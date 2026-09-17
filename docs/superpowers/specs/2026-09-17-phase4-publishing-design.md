@@ -225,11 +225,13 @@ Captions" (§3.3). Планування (`Draft → Scheduled`) відбуває
 
 ### 7.3 Calendar view
 
-`saade/filament-fullcalendar` — зрілий, підтримуваний плагін під Filament 4.
-Обґрунтування нової залежності: ROADMAP явно вимагає "Calendar view" як
-deliverable Phase 4; писати FullCalendar-еквівалент з нуля — це вирішена задача
-поза скоупом MVP. Календарна сторінка показує `Publication` за `scheduled_at`,
-колір за `status`, клік відкриває `PublicationResource` edit.
+Без нової залежності: `saade/filament-fullcalendar` перевірено на Packagist
+під час review спека — стабільного релізу під Filament 4 немає (лише
+`v4.0.0-beta7` і новіше), тягнути beta-пакет у production заради UI-плюшки
+недоцільно. "Calendar view" з ROADMAP закривається `PublicationsTable`:
+фільтри за `status` і `scheduled_at` (діапазон дат, `Filter::make()` з двома
+`DatePicker`), сортування за `scheduled_at` за замовчуванням — адмін бачить
+хронологію публікацій без окремого календарного UI.
 
 ## 8. Тести
 
