@@ -17,11 +17,11 @@ class QualityCheckVideoJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public int $timeout = 120;
+    public int $timeout = 420;
 
     public int $tries = 3;
 
-    public int $uniqueFor = 150;
+    public int $uniqueFor = 450;
 
     public function __construct(public readonly int $videoId)
     {

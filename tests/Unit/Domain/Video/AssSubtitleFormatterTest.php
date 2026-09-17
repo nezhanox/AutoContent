@@ -87,4 +87,13 @@ class AssSubtitleFormatterTest extends TestCase
 
         $this->assertStringContainsString('Dialogue: 0,1:01:01.50,1:01:02.00,Default,One hour in', $ass);
     }
+
+    public function test_it_carries_a_rounded_up_centisecond_into_the_next_second(): void
+    {
+        $ass = AssSubtitleFormatter::format([
+            ['start' => 1.996, 'end' => 2.0, 'text' => 'Carries'],
+        ], $this->style());
+
+        $this->assertStringContainsString('Dialogue: 0,0:00:02.00,0:00:02.00,Default,Carries', $ass);
+    }
 }

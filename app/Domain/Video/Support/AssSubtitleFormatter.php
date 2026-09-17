@@ -37,14 +37,16 @@ final class AssSubtitleFormatter
 
     private static function timestamp(float $seconds): string
     {
-        $whole = (int) floor($seconds);
+        $totalCentiseconds = (int) round($seconds * 100);
+        $wholeSeconds = intdiv($totalCentiseconds, 100);
+        $centiseconds = $totalCentiseconds % 100;
 
         return sprintf(
             '%d:%02d:%02d.%02d',
-            intdiv($whole, 3600),
-            intdiv($whole % 3600, 60),
-            $whole % 60,
-            (int) round(($seconds - $whole) * 100),
+            intdiv($wholeSeconds, 3600),
+            intdiv($wholeSeconds % 3600, 60),
+            $wholeSeconds % 60,
+            $centiseconds,
         );
     }
 }

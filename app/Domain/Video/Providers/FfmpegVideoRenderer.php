@@ -32,6 +32,9 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
             }
 
             $totalDuration = array_sum($durations);
+            // Crossfade transitions overlap adjacent clips, shortening the combined
+            // video track — this must match FfprobeVideoQualityChecker::expectedDuration()
+            // exactly, or the quality check will disagree with what was actually rendered.
             if (config('render.transition.type') !== 'none' && count($sceneClips) >= 2) {
                 $totalDuration -= (count($sceneClips) - 1) * (float) config('render.transition.duration');
             }
@@ -127,6 +130,9 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
         $currentLabel = '0';
 
         for ($i = 1; $i < count($clips); $i++) {
+            // Clamped to avoid a negative ffmpeg xfade offset if a scene's duration is
+            // shorter than the transition duration (assumes scene durations are
+            // realistically seconds-scale, not sub-transition-length).
             $offset = max(0.0, $cumulative - ($i * $transitionDuration));
             $nextLabel = "v{$i}";
             $filters[] = "[{$currentLabel}][{$i}]xfade=transition={$transitionType}:duration={$transitionDuration}:offset={$offset}[{$nextLabel}]";
