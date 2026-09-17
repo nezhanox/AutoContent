@@ -25,4 +25,4 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-CMD ["php", "artisan", "queue:work", "--queue=whisper,default", "--sleep=3", "--tries=3"]
+CMD ["php", "artisan", "queue:work", "--queue=render,whisper,default", "--sleep=3", "--tries=3"]
