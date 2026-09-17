@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
 use App\Models\Video;
@@ -61,5 +62,33 @@ class VideoDomainModelsTest extends TestCase
 
         $this->assertDatabaseMissing('video_scenes', ['id' => $scene->id]);
         $this->assertDatabaseMissing('voiceovers', ['id' => $voiceover->id]);
+    }
+
+    public function test_a_video_can_have_a_music_asset(): void
+    {
+        $music = MediaAsset::factory()->create(['type' => MediaAssetType::Audio]);
+        $video = Video::factory()->create(['music_asset_id' => $music->id]);
+
+        $this->assertTrue($video->musicAsset->is($music));
+    }
+
+    public function test_music_asset_id_is_nullable(): void
+    {
+        $video = Video::factory()->create(['music_asset_id' => null]);
+
+        $this->assertNull($video->fresh()->musicAsset);
+    }
+
+    public function test_quality_passed_and_quality_report_are_cast(): void
+    {
+        $video = Video::factory()->create([
+            'quality_passed' => true,
+            'quality_report' => ['checks' => ['has_video_stream' => true]],
+        ]);
+
+        $fresh = $video->fresh();
+
+        $this->assertTrue($fresh->quality_passed);
+        $this->assertSame(['checks' => ['has_video_stream' => true]], $fresh->quality_report);
     }
 }

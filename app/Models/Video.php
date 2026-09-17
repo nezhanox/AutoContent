@@ -16,7 +16,8 @@ class Video extends Model
     protected $fillable = [
         'content_project_id', 'content_idea_id', 'script_id', 'title', 'description',
         'status', 'duration', 'width', 'height', 'file_path', 'thumbnail_path',
-        'subtitle_id', 'metadata', 'error_message',
+        'subtitle_id', 'music_asset_id', 'quality_passed', 'quality_report',
+        'metadata', 'error_message',
     ];
 
     protected function casts(): array
@@ -24,6 +25,8 @@ class Video extends Model
         return [
             'status' => VideoStatus::class,
             'metadata' => 'array',
+            'quality_passed' => 'boolean',
+            'quality_report' => 'array',
         ];
     }
 
@@ -55,6 +58,11 @@ class Video extends Model
     public function subtitle(): BelongsTo
     {
         return $this->belongsTo(MediaAsset::class, 'subtitle_id');
+    }
+
+    public function musicAsset(): BelongsTo
+    {
+        return $this->belongsTo(MediaAsset::class, 'music_asset_id');
     }
 
     public function publications(): HasMany
