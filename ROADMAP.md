@@ -170,20 +170,31 @@ Voiceover виявились незалежними підсистемами п�
       (розділ 11 ТЗ), генерація SRT — **Phase 3d, завершено (2026-09-16)**
       Spec: `docs/superpowers/specs/2026-09-16-phase3d-subtitles-design.md`
       Plan: `docs/superpowers/plans/2026-09-16-phase3d-subtitles.md`
-* [ ] `VideoRendererInterface` + `FfmpegVideoRenderer` (Symfony Process, без хардкоду
+* [x] `VideoRendererInterface` + `FfmpegVideoRenderer` (Symfony Process, без хардкоду
       параметрів — розділ 9–10 ТЗ), configurable vertical template, ASS-стилізація
-      субтитрів (шрифт/позиція/розмір/margins з розділу 10 ТЗ) — **Phase 3e**
-* [ ] `RenderVideoJob`, `QualityCheckJob` (purpose=`quality_check` через `LlmManager`)
-      — **Phase 3e**
-* [ ] Feature-тести: scene generation (готово в 3a), voiceover (готово в 3b), asset
+      субтитрів (шрифт/позиція/розмір/margins з розділу 10 ТЗ) — **Phase 3e,
+      завершено (2026-09-17)**
+* [x] `RenderVideoJob`, `QualityCheckVideoJob` — **Phase 3e, завершено (2026-09-17)**.
+      Контролер-рішення під час брейнштормінгу 3e: замість початково накресленого в
+      ROADMAP LLM-based `QualityCheckJob` (purpose=`quality_check` через `LlmManager`)
+      побудовано `FfprobeVideoQualityChecker` — детермінований технічний чекер
+      (тривалість, роздільна здатність, надмірні чорні кадри) через `ffprobe`, без
+      звернення до LLM.
+* [x] Feature-тести: scene generation (готово в 3a), voiceover (готово в 3b), asset
       collection (готово в 3c), subtitle generation (готово в 3d), rendering pipeline
-      (мокнутий FFmpeg) — **3e**
+      (мокнутий FFmpeg через `Process::fake()`) — **Phase 3e, завершено (2026-09-17)**
+      Spec: `docs/superpowers/specs/2026-09-17-phase3e-rendering-design.md`
+      Plan: `docs/superpowers/plans/2026-09-17-phase3e-rendering.md`
 
 DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, subtitles, rendering,
 готовий `.mp4`, перегляд у Filament. **3a закриває частину пункту 6** (Video Scenes),
 **3b закриває пункт 5** (Voiceover), **3c просуває пункт 6 далі** (сцени тепер мають
 `asset_id`), **3d закриває пункт 7** (subtitles, у форматі SRT — ASS зі стилізацією
-залишено 3e) — решта DoD чекає на 3e.
+залишено 3e), **3e закриває пункти 8–9** (`FfmpegVideoRenderer` рендерить готовий
+`1080x1920.mp4` з ASS-субтитрами, `RenderVideoJob`/`QualityCheckVideoJob` і дії
+"Render Video"/"Check Quality" видно в Filament admin panel на `VideosTable`).
+**Перевірено** — 176/176 тестів, `pint`, `route:list`, `migrate:fresh --seed`.
+Phase 3 (усі під-фази 3a–3e) закрито.
 
 **Досі відкрито, без конкретної наступної фази (з фінального review Phase 3a; Assets
 переїхав з 3b у 3c під час брейнштормінгу 3b, але 3c не торкався
@@ -267,6 +278,46 @@ DoD: пункти 5–9 DoD (розділ 24 ТЗ) — Voiceover, Video Scenes, 
 * Після кліку "Generate Scenes" рядок `Script` не дає негайного відгуку (кнопка не
   ховається/не змінюється до завершення job) — косметична незручність, природно
   закривається разом із загальним pipeline-статусом у 3e.
+
+**Для Phase 4+ — врахувати (з фінального review Phase 3e):**
+* **П'яте повторення того самого гепу** (вперше зазначено з Phase 2, підтверджено в
+  3c для `CollectVideoAssetsJob`): jobs пайплайна не розрізняють детерміновані
+  (permanent) і транзієнтні помилки, і permanent failure не скидає `Video.status`
+  назад. `RenderVideoJob` після вичерпання retries лишає `Video.status` заклякнутим
+  на `Rendering` назавжди — той самий патерн, що вже є в `GenerateVoiceoverJob`/
+  `CollectVideoAssetsJob`/`GenerateSubtitlesJob`. П'ять окремих jobs з ідентичним
+  недоліком — це вже явний сигнал закрити одним пакетним фіксом (напр. спільний
+  `failed()`-хук у базовому Job-класі, що скидає статус і викликає
+  `Notification::make()->sendToDatabase()`), а не точково per-job у Phase 4+.
+* `FfmpegVideoRenderer::render()` (`app/Domain/Video/Providers/FfmpegVideoRenderer.php`)
+  вантажить увесь відрендерений файл у пам'ять через `file_get_contents()` перед
+  `Storage::put()` — прийнятно для MVP-масштабу коротких вертикальних відео, але
+  варто перейти на `putStream()`, якщо розмір рендерів зросте.
+* `FfprobeVideoQualityChecker::probe()`
+  (`app/Domain/Video/Providers/FfprobeVideoQualityChecker.php`) мовчки ковтає
+  падіння `ffprobe` (не кидає виняток на ненульовий exit-код), на відміну від
+  `FfmpegVideoRenderer::probe()` — прийнятно для чекера (крах = провалені checks),
+  але вартий позначки для triage, якщо колись знадобиться розрізняти "не пройшло
+  перевірку" від "перевірка не змогла запуститись".
+* Архітектурне дублювання `worker`/`horizon` (Docker), вперше зазначене з Phase 3d,
+  і далі відкрите: `RenderVideoJob`/`QualityCheckVideoJob` використали той самий
+  патерн виділеної черги (`render` на `worker`), що й `whisper` — свідоме рішення
+  користувача під час брейнштормінгу 3e (не проґавлений момент), але сам дублікат
+  контейнерів (`docker/worker/Dockerfile` vs `docker/php/Dockerfile`) лишається
+  невирішеним і накопичується з кожною новою чергою.
+* `AssSubtitleFormatter::timestamp()` (Task 4, `app/Domain/Video/Support/
+  AssSubtitleFormatter.php`) — округлення до сотих секунди може дати "100" без
+  перенесення розряду для дробової частини секунди ≥ 0.995; латентно в коді, зданому
+  в самому брифі, реальний вплив залежить від того, чи Whisper (3d) коли-небудь
+  віддасть не круглі значення часу сегмента.
+* `FfprobeVideoQualityChecker::hasExcessiveBlackFrames()` — назва обіцяє більше, ніж
+  перевіряє (падає на будь-якому чорному сегменті ≥1с, включно з навмисними
+  fade-out) — косметичний момент у найменуванні, поведінка відповідає брифу.
+* **Не перевірено на реальному відео**: точна структура xfade-фільтра в
+  `FfmpegVideoRenderer` (multi-scene конкатенація з переходами) верифікована лише
+  проти `Process::fake()` у тестах — жодного реального прогону `ffmpeg` на
+  multi-scene відео в рамках 3e не було. Варто підтвердити на реальних даних перед
+  тим, як покладатись на цей шлях у production.
 
 ---
 
