@@ -32,6 +32,9 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
             }
 
             $totalDuration = array_sum($durations);
+            if (config('render.transition.type') !== 'none' && count($sceneClips) >= 2) {
+                $totalDuration -= (count($sceneClips) - 1) * (float) config('render.transition.duration');
+            }
             $concatPath = $this->concatenateClips($sceneClips, $durations, $workDir);
 
             $assPath = "{$workDir}/subtitles.ass";
@@ -124,7 +127,7 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
         $currentLabel = '0';
 
         for ($i = 1; $i < count($clips); $i++) {
-            $offset = $cumulative - ($i * $transitionDuration);
+            $offset = max(0.0, $cumulative - ($i * $transitionDuration));
             $nextLabel = "v{$i}";
             $filters[] = "[{$currentLabel}][{$i}]xfade=transition={$transitionType}:duration={$transitionDuration}:offset={$offset}[{$nextLabel}]";
             $cumulative += $durations[$i];
@@ -182,7 +185,7 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
 
         $audioFilter = $musicPath !== null
             ? "[1:a]volume={$voiceVolume}[a1];[2:a]aloop=loop=-1:size=2e9,volume={$musicVolume}[a2];"
-                .'[a1][a2]amix=inputs=2:duration=first:dropout_transition=0[a]'
+                .'[a1][a2]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]'
             : "[1:a]volume={$voiceVolume}[a]";
 
         $filterComplex = "[0:v]ass={$this->escapeForFilter($assPath)}[v];{$audioFilter}";
@@ -244,7 +247,7 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
 
     private function escapeForFilter(string $path): string
     {
-        return str_replace([':', '\\'], ['\\:', '\\\\'], $path);
+        return str_replace(['\\', ':'], ['\\\\', '\\:'], $path);
     }
 
     private function binary(): string

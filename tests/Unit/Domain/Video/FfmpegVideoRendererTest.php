@@ -94,6 +94,57 @@ class FfmpegVideoRendererTest extends TestCase
         $this->assertSame("projects/{$video->content_project_id}/renders/{$video->id}.mp4", $result->path);
     }
 
+    public function test_it_uses_the_xfade_shortened_duration_for_the_final_mux_and_offset(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        $this->fakeFfmpegProcesses();
+
+        // Scene durations are 3 and 4 (see buildVideo()), default transition duration is 0.5.
+        // Expected final mux duration: 3 + 4 - (1 * 0.5) = 6.5.
+        // Expected xfade offset for the second clip: 3.0 - (1 * 0.5) = 2.5.
+        $video = $this->buildVideo();
+        (new FfmpegVideoRenderer)->render($video);
+
+        Process::assertRan(function ($process) {
+            $command = $process->command;
+            $tIndex = array_search('-t', $command, true);
+
+            return $tIndex !== false && ($command[$tIndex + 1] ?? null) === '6.5';
+        });
+
+        Process::assertRan(function ($process) {
+            $command = $process->command;
+            $filterIndex = array_search('-filter_complex', $command, true);
+
+            if ($filterIndex === false) {
+                return false;
+            }
+
+            $filter = $command[$filterIndex + 1] ?? '';
+
+            return str_contains($filter, 'offset=2.5');
+        });
+    }
+
+    public function test_it_concatenates_via_the_concat_demuxer_when_transitions_are_disabled(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        $this->fakeFfmpegProcesses();
+        config()->set('render.transition.type', 'none');
+
+        $video = $this->buildVideo();
+        (new FfmpegVideoRenderer)->render($video);
+
+        Process::assertRan(function ($process) {
+            $command = $process->command;
+
+            return in_array('-f', $command, true)
+                && in_array('concat', $command, true)
+                && in_array('-safe', $command, true)
+                && in_array('0', $command, true);
+        });
+    }
+
     public function test_it_stores_the_rendered_file_on_the_configured_disk(): void
     {
         Storage::fake(config('filesystems.default'));
