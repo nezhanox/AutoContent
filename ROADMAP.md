@@ -472,20 +472,101 @@ Plan: `docs/superpowers/plans/2026-09-17-phase4-publishing.md`
 
 ---
 
-## Phase 5 — Analytics
+## Phase 5 — Analytics ✅ завершено (2026-09-18)
 
 Мета: базова аналітика по контенту й по вартості LLM.
 
 Deliverables:
 
-* [ ] `CollectMetricsService`/`CollectVideoMetricsJob` → `VideoMetric`
-* [ ] Filament Dashboard: videos generated today, published, failed jobs, views, likes,
-      comments, best videos, top performing topics (розділ 14 ТЗ)
-* [ ] Dashboard/звіт по `LlmUsageLog`: вартість і токени по provider/model/purpose —
-      основа для рішення, яку модель використовувати далі (розділ 6.2 ТЗ)
+* [x] `FakeSocialPublisher::fetchMetrics()` + `CollectVideoMetricsJob` → `VideoMetric`,
+      диспатчиться командою `metrics:collect`
+      (`app/Domain/Publishing/Providers/FakeSocialPublisher.php`,
+      `app/Domain/Publishing/VideoMetricsResult.php`, `app/Jobs/CollectVideoMetricsJob.php`,
+      `app/Console/Commands/CollectMetricsCommand.php`) — щоразу створює новий рядок
+      `VideoMetric` (append-only history), не перезаписує попередній; зареєстровано в
+      `bootstrap/app.php`'s `withSchedule()` на щогодинний тик
+* [x] Повністю view-only `VideoMetricResource` — лише `index`-сторінка,
+      `create`/`edit`/`delete` недоступні ні в UI, ні як маршрути
+      (`app/Filament/Resources/VideoMetrics/VideoMetricResource.php`,
+      `.../Pages/ListVideoMetrics.php`, `.../Tables/VideoMetricsTable.php`)
+* [x] Filament Dashboard: `PipelineStatsWidget` (videos generated today, published,
+      failed jobs — через `notifications`, views/likes/comments), `BestVideosWidget`
+      (топ відео за views, "latest per publication"), `TopTopicsWidget` (топ тем за
+      сумарними views, згруповано по `ContentIdea`) (розділ 14 ТЗ)
+      (`app/Filament/Widgets/PipelineStatsWidget.php`,
+      `app/Filament/Widgets/BestVideosWidget.php`,
+      `app/Filament/Widgets/TopTopicsWidget.php`)
+* [x] `LlmUsageReport` — окрема Filament-сторінка (`admin/llm-usage-report`) зі
+      звітом по `LlmUsageLog`: виклики/токени/вартість/success rate, згруповано по
+      provider/model/purpose — основа для рішення, яку модель використовувати далі
+      (розділ 6.2 ТЗ) (`app/Filament/Pages/LlmUsageReport.php`)
+* [x] Тести на кожен новий шматок: `CollectMetricsCommandTest`,
+      `CollectVideoMetricsJobTest` (включно з "repeated runs append new rows instead
+      of overwriting"), `FakeSocialPublisherMetricsTest` (монотонне зростання
+      views/likes/comments/shares), `VideoMetricTest`, `VideoMetricResourceViewOnlyTest`,
+      `PipelineStatsWidgetTest`, `BestVideosWidgetTest`, `TopTopicsWidgetTest`,
+      `LlmUsageReportTest` (`tests/Feature/Console/CollectMetricsCommandTest.php`,
+      `tests/Feature/Jobs/CollectVideoMetricsJobTest.php`,
+      `tests/Unit/Domain/Publishing/FakeSocialPublisherMetricsTest.php`,
+      `tests/Feature/Models/VideoMetricTest.php`,
+      `tests/Feature/Filament/VideoMetricResourceViewOnlyTest.php`,
+      `tests/Feature/Filament/PipelineStatsWidgetTest.php`,
+      `tests/Feature/Filament/BestVideosWidgetTest.php`,
+      `tests/Feature/Filament/TopTopicsWidgetTest.php`,
+      `tests/Feature/Filament/LlmUsageReportTest.php`)
 
-DoD: усі 16 пунктів Definition of Done (розділ 24 ТЗ) закриті; `php artisan test`,
-`pint`, `route:list`, `migrate:fresh --seed` проходять чисто.
+DoD: усі 16 пунктів Definition of Done (розділ 24 ТЗ) закриті. **Перевірено** —
+224/224 тестів (`php artisan test`), `pint` (0 style violations, no files touched),
+`route:list` (67 маршрутів: `admin/video-metrics` — лише `index`, `create`/`edit`
+підтверджено відсутні окремим HTTP-запитом (404 на обидва); `admin/llm-usage-report`
+присутній, без помилок), `migrate:fresh --seed` (усі 20 міграцій застосувались чисто —
+Phase 5 не додає нових міграцій, `video_metrics`/`llm_usage_logs` схеми вже існували
+з Phase 1, сідер відпрацював). `schedule:list` показує обидва завдання
+(`publications:dispatch-due` щохвилини, `metrics:collect` щогодини) — команда сама
+по собі вимагає робочого cache-драйвера для мьютексів, а хостовий PHP CLI у цьому
+воркспейсі не має розширення `ext-redis` (тоді як `.env`'s `CACHE_STORE=redis`) —
+перевірено з тимчасовим `CACHE_STORE=array` тільки для цього виклику, без правок
+файлів; сама Postgres/Redis інфраструктура (докер-контейнери) робоча, це суто gap
+хостового PHP CLI, не додатку. Усі 5 ручних сценаріїв пройдено через
+`php artisan tinker`/`Livewire::test()`/HTTP-запити до тимчасово піднятого
+`php artisan serve`:
+1. Створено `Publication` (`status=Published`) для існуючих `Video`/`SocialAccount`,
+   запущено `metrics:collect` (з `QUEUE_CONNECTION=sync`, бо `ext-redis` відсутній
+   на хості — та сама причина, що й вище) → створено перший рядок `VideoMetric`
+   (views=484, likes=420).
+2. Повторний запуск `metrics:collect` на тій самій публікації → додано другий,
+   окремий рядок `VideoMetric` (views=2517 ≥ 484) — не перезапис, а append.
+3. `Livewire::test(PipelineStatsWidget::class)` / `BestVideosWidget` / `TopTopicsWidget`
+   відрендерились з реальними даними (`PipelineStatsWidget` показав "Videos
+   published: 1"; `BestVideosWidget` показав щойно створену публікацію серед 4
+   результатів; `TopTopicsWidget` — 3 згруповані теми).
+4. `Livewire::test(LlmUsageReport::class)` показав 3 згруповані рядки
+   (provider=openai, model=gpt-4o-mini, purposes captions/script/quality_check),
+   що в сумі дають всі 6 рядків `LlmUsageLog` — групування коректне.
+5. HTTP-запити до `admin/video-metrics/create` і `admin/video-metrics/1/edit` —
+   обидва `404` (маршрут не існує), тоді як `admin/video-metrics` і
+   `admin/llm-usage-report` — `302` (валідні маршрути, редірект на login).
+
+Spec: `docs/superpowers/specs/2026-09-18-phase5-analytics-design.md`
+Plan: `docs/superpowers/plans/2026-09-18-phase5-analytics.md`
+
+**Для Phase 6+ — врахувати:**
+* Відсутня таблиця `failed_jobs` (немає `queue:failed-table`-міграції, хоча
+  `config/queue.php`'s `failed.driver` — `database-uuids`) — інфраструктурний гап
+  черги, не Analytics-домену (зафіксовано в спеку, §6). Dashboard-картка "Failed
+  jobs" (`PipelineStatsWidget`) навмисно спирається на вже робочий і протестований
+  канал `notifications` (`PipelineJobFailedNotification`, Phase 4) — це не блокер
+  зараз, легітимне рішення в межах поточного скоупу, але сама відсутність
+  `failed_jobs` лишається відкритою для того, кому вона знадобиться пізніше.
+* Learned pattern з цього фазу: `id` будь-якої incrementing Eloquent-моделі
+  неявно кастується в int, тож у Filament-таблицях, побудованих на агрегованому
+  (`groupBy`) запиті по нечисловій колонці, `id` не можна аліасити на
+  string-конкатенацію чи іншу нечислову колонку — кожен рядок згорнеться в `id=0`
+  і відрендериться лише один рядок. Правильний фікс — аліасити `id` на
+  `ROW_NUMBER() OVER (...)`. Застосовано в `TopTopicsWidget`
+  (`app/Filament/Widgets/TopTopicsWidget.php`) і `LlmUsageReport`
+  (`app/Filament/Pages/LlmUsageReport.php`) — варто мати на увазі для будь-якого
+  майбутнього агрегованого Filament-табличного view.
 
 ---
 
