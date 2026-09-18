@@ -751,9 +751,12 @@ class VideoMetricResourceViewOnlyTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $publication = Publication::factory()->create(['status' => PublicationStatus::Published]);
-        VideoMetric::factory()->create(['publication_id' => $publication->id, 'views' => 4242]);
+        // Under 1000: VideoMetricsTable's pre-existing `views` column uses ->numeric(),
+        // which formats via Number::format() under the app locale and inserts a
+        // thousands separator (e.g. 4242 -> "4,242") — a 3-digit value avoids that.
+        VideoMetric::factory()->create(['publication_id' => $publication->id, 'views' => 999]);
 
-        $this->get('/admin/video-metrics')->assertSuccessful()->assertSee('4242');
+        $this->get('/admin/video-metrics')->assertSuccessful()->assertSee('999');
     }
 }
 ```
