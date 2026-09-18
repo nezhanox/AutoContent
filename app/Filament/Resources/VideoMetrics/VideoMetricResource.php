@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\VideoMetrics;
 
-use App\Filament\Resources\VideoMetrics\Pages\CreateVideoMetric;
-use App\Filament\Resources\VideoMetrics\Pages\EditVideoMetric;
 use App\Filament\Resources\VideoMetrics\Pages\ListVideoMetrics;
 use App\Filament\Resources\VideoMetrics\Schemas\VideoMetricForm;
 use App\Filament\Resources\VideoMetrics\Tables\VideoMetricsTable;
@@ -50,8 +48,6 @@ class VideoMetricResource extends Resource
     {
         return [
             'index' => ListVideoMetrics::route('/'),
-            'create' => CreateVideoMetric::route('/create'),
-            'edit' => EditVideoMetric::route('/{record}/edit'),
         ];
     }
 }
