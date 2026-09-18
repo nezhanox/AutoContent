@@ -486,7 +486,8 @@ Deliverables:
       `VideoMetric` (append-only history), не перезаписує попередній; зареєстровано в
       `bootstrap/app.php`'s `withSchedule()` на щогодинний тик
 * [x] Повністю view-only `VideoMetricResource` — лише `index`-сторінка,
-      `create`/`edit`/`delete` недоступні ні в UI, ні як маршрути
+      `create`/`edit` недоступні ні в UI, ні як маршрути; `DeleteBulkAction`
+      свідомо лишено (ручне чищення сміття/дублів, спек §2)
       (`app/Filament/Resources/VideoMetrics/VideoMetricResource.php`,
       `.../Pages/ListVideoMetrics.php`, `.../Tables/VideoMetricsTable.php`)
 * [x] Filament Dashboard: `PipelineStatsWidget` (videos generated today, published,
@@ -495,7 +496,9 @@ Deliverables:
       сумарними views, згруповано по `ContentIdea`) (розділ 14 ТЗ)
       (`app/Filament/Widgets/PipelineStatsWidget.php`,
       `app/Filament/Widgets/BestVideosWidget.php`,
-      `app/Filament/Widgets/TopTopicsWidget.php`)
+      `app/Filament/Widgets/TopTopicsWidget.php`,
+      `app/Models/VideoMetric.php`'s `latestPerPublication()` scope, спільна для
+      всіх трьох)
 * [x] `LlmUsageReport` — окрема Filament-сторінка (`admin/llm-usage-report`) зі
       звітом по `LlmUsageLog`: виклики/токени/вартість/success rate, згруповано по
       provider/model/purpose — основа для рішення, яку модель використовувати далі
@@ -567,6 +570,50 @@ Plan: `docs/superpowers/plans/2026-09-18-phase5-analytics.md`
   (`app/Filament/Widgets/TopTopicsWidget.php`) і `LlmUsageReport`
   (`app/Filament/Pages/LlmUsageReport.php`) — варто мати на увазі для будь-якого
   майбутнього агрегованого Filament-табличного view.
+* Learned pattern (тестування) з фінального whole-branch review: `assertSee('2')`-
+  стиль перевірок на однозначних/двозначних числах проти повного Livewire-рендеру
+  ненадійний — ці цифри трапляються всюди в `wire:snapshot` JSON, чексумах і
+  Tailwind-класах незалежно від реального значення статистики. `PipelineStatsWidgetTest`
+  спочатку мав саме цей ґан (усі три date-filtered статистики фактично не
+  перевірялись) — виправлено прямим викликом `getStats()`/`Stat::getValue()`
+  замість `assertSee()` для однозначних/двозначних значень; `assertSee()`
+  залишається безпечним лише для 3+-значних сум (views/likes/comments).
+* Знайдено й виправлено під час фінального review: `NotifiesOnPermanentFailure`
+  (Phase 4) шле по одному рядку `notifications` **на кожного адміна**
+  (`Notification::send(User::all(), ...)`), тож `PipelineStatsWidget`'s "Failed
+  jobs today" початково рахував усі рядки таблиці — і завищував кількість
+  збоїв у N разів (N = кількість адмінів). Виправлено рахунком нотифікацій
+  **поточного** користувача (`Filament::auth()->user()->notifications()`) —
+  коректно дає рівно один рядок на збій незалежно від кількості адмінів. Тестовий
+  фікстур тепер включає двох адмінів саме для того, щоб цей клас багів
+  залишався видимим для регресій.
+* `PipelineStatsWidget`'s Views/Likes/Comments сумуються в PHP
+  (`$latestMetrics->sum(...)` на вже завантаженій `Collection`), не на рівні
+  БД — прийнятно для MVP-обсягу публікацій, але вантажить одну модель
+  `VideoMetric` на публікацію при кожному завантаженні Dashboard; вартий
+  переходу на SQL-агрегацію поверх підзапиту, коли кількість публікацій
+  зросте.
+* `CollectMetricsCommand` без обмеження за віком публікації (свідоме рішення
+  Phase 5) диспатчить `CollectVideoMetricsJob` для **кожної** `Published`
+  публікації щогодини назавжди — за зростання обсягу публікацій це
+  необмежено зростаюче навантаження на чергу (і на реальні social API в
+  Phase 6). Вартий політики згасання (наприклад: щогодини перші 7 днів,
+  далі щодня) або принаймні `cursor()`/`chunkById()` замість `->get()`.
+* Жоден з трьох Dashboard-віджетів не задає `$sort` — порядок віджетів
+  визначається алфавітним discovery-порядком класів (`BestVideosWidget`
+  опиняється над `PipelineStatsWidget`), тож stats-огляд рендериться між
+  двома таблицями, а не зверху. Косметичний момент, один рядок на віджет.
+* "Videos generated today" (`PipelineStatsWidget`) використовує `updated_at`
+  як проксі для "коли відрендерилось" — у `videos` немає окремої колонки
+  `rendered_at`. Робоче рішення для MVP, але будь-яке подальше редагування
+  запису "сьогодні" неявно перезбільшить цю статистику, а ручна зміна
+  статусу з `Rendered` прибере запис з підрахунку. Вартий окремої колонки
+  `rendered_at` у майбутній фазі.
+* Немає жодного smoke-тесту, що підтверджує реєстрацію трьох Dashboard-
+  віджетів і `LlmUsageReport` на `/admin` (усі покриті лише ізольованими
+  `Livewire::test(Widget::class)`, залежність від `discoverWidgets()`/
+  `discoverPages()` перевірена лише вручну під час фінального review).
+  Один `$this->get('/admin')->assertSuccessful()` закрив би цю прогалину.
 
 ---
 
