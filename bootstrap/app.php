@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('publications:dispatch-due')
             ->everyMinute()
             ->withoutOverlapping();
+
+        $schedule->command('metrics:collect')
+            ->hourly()
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         //
