@@ -10,14 +10,14 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class RenderVideoJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 900;
 
@@ -72,7 +72,9 @@ class RenderVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('video')->error('Video rendering failed permanently.', [
+        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+
+        $this->notifyPermanentFailure('video', 'Video rendering failed permanently.', [
             'video_id' => $this->videoId,
             'error' => $exception->getMessage(),
         ]);

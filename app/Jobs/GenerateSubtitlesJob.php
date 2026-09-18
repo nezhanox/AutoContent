@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Video\Services\GenerateSubtitlesService;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
@@ -13,13 +14,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 650;
 
@@ -77,7 +77,9 @@ class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('video')->error('Subtitle generation failed permanently.', [
+        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+
+        $this->notifyPermanentFailure('video', 'Subtitle generation failed permanently.', [
             'video_id' => $this->videoId,
             'error' => $exception->getMessage(),
         ]);

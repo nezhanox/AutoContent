@@ -7,8 +7,11 @@ use App\Domain\Video\QualityCheckResult;
 use App\Domain\Video\VideoQualityCheckerInterface;
 use App\Jobs\QualityCheckVideoJob;
 use App\Models\Enums\VideoStatus;
+use App\Models\User;
 use App\Models\Video;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class QualityCheckVideoJobTest extends TestCase
@@ -69,5 +72,24 @@ class QualityCheckVideoJobTest extends TestCase
         $fresh = $video->fresh();
         $this->assertTrue($fresh->quality_passed);
         $this->assertSame(['has_video_stream' => true], $fresh->quality_report['checks']);
+    }
+
+    public function test_failed_marks_the_video_failed_and_sends_a_notification(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $video = Video::factory()->create(['status' => VideoStatus::Rendered]);
+
+        $job = new QualityCheckVideoJob($video->id);
+        $job->failed(new \RuntimeException('boom'));
+
+        $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['video_id'] === $video->id
+        );
     }
 }

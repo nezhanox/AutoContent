@@ -10,10 +10,13 @@ use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
 use App\Models\Voiceover;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RenderVideoJobTest extends TestCase
@@ -118,5 +121,24 @@ class RenderVideoJobTest extends TestCase
 
         $this->assertSame(VideoStatus::AssetsReady, $video->fresh()->status);
         $this->assertNull($video->fresh()->file_path);
+    }
+
+    public function test_failed_marks_the_video_failed_and_sends_a_notification(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $video = $this->videoReadyForRendering();
+
+        $job = new RenderVideoJob($video->id);
+        $job->failed(new \RuntimeException('ffmpeg crashed'));
+
+        $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['video_id'] === $video->id
+        );
     }
 }

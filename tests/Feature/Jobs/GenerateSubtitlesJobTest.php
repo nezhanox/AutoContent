@@ -9,9 +9,12 @@ use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\Voiceover;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -108,5 +111,24 @@ class GenerateSubtitlesJobTest extends TestCase
         app()->call([new GenerateSubtitlesJob($video->id), 'handle']);
 
         $this->assertSame(1, MediaAsset::where('type', MediaAssetType::Subtitle)->count());
+    }
+
+    public function test_failed_marks_the_video_failed_and_sends_a_notification(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $video = Video::factory()->create(['status' => VideoStatus::AssetsReady]);
+
+        $job = new GenerateSubtitlesJob($video->id);
+        $job->failed(new \RuntimeException('boom'));
+
+        $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['video_id'] === $video->id
+        );
     }
 }

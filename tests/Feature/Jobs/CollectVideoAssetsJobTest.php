@@ -10,9 +10,12 @@ use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class CollectVideoAssetsJobTest extends TestCase
@@ -109,5 +112,24 @@ class CollectVideoAssetsJobTest extends TestCase
         }
 
         $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
+    }
+
+    public function test_failed_marks_the_video_failed_and_sends_a_notification(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $video = Video::factory()->create(['status' => VideoStatus::VoiceGenerated]);
+
+        $job = new CollectVideoAssetsJob($video->id);
+        $job->failed(new \RuntimeException('boom'));
+
+        $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['video_id'] === $video->id
+        );
     }
 }

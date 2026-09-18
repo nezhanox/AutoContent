@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Video\VideoQualityCheckerInterface;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Bus\Queueable;
@@ -10,12 +11,11 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class QualityCheckVideoJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 420;
 
@@ -63,7 +63,9 @@ class QualityCheckVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('video')->error('Quality check failed permanently.', [
+        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+
+        $this->notifyPermanentFailure('video', 'Quality check failed permanently.', [
             'video_id' => $this->videoId,
             'error' => $exception->getMessage(),
         ]);

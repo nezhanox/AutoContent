@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Video\Services\CollectVideoAssetsService;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -12,12 +13,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class CollectVideoAssetsJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 120;
 
@@ -61,7 +61,9 @@ class CollectVideoAssetsJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('video')->error('Asset collection failed permanently.', [
+        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+
+        $this->notifyPermanentFailure('video', 'Asset collection failed permanently.', [
             'video_id' => $this->videoId,
             'error' => $exception->getMessage(),
         ]);
