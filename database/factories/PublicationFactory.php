@@ -13,7 +13,14 @@ class PublicationFactory extends Factory
     {
         return [
             'video_id' => Video::factory(),
-            'social_account_id' => SocialAccount::factory(),
+            // A publication's social account must belong to the same content project as its
+            // video (PublicationForm scopes the account select accordingly) — resolve the
+            // account against whichever video_id ends up on the record, default or overridden.
+            'social_account_id' => function (array $attributes) {
+                return SocialAccount::factory()->create([
+                    'content_project_id' => Video::find($attributes['video_id'])?->content_project_id,
+                ])->id;
+            },
             'caption' => null,
             'hashtags' => [],
             'scheduled_at' => null,
