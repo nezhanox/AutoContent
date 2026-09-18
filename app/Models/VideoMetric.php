@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,5 +27,13 @@ class VideoMetric extends Model
     public function publication(): BelongsTo
     {
         return $this->belongsTo(Publication::class);
+    }
+
+    public static function latestPerPublication(): Builder
+    {
+        return static::query()
+            ->selectRaw('DISTINCT ON (publication_id) *')
+            ->orderBy('publication_id')
+            ->orderByDesc('measured_at');
     }
 }
