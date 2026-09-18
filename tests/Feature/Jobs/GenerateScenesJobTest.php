@@ -10,10 +10,13 @@ use App\Models\ContentProject;
 use App\Models\Enums\ScriptStatus;
 use App\Models\Enums\VideoStatus;
 use App\Models\Script;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class GenerateScenesJobTest extends TestCase
@@ -160,5 +163,43 @@ class GenerateScenesJobTest extends TestCase
         } finally {
             $this->assertSame(2, VideoScene::where('video_id', $video->id)->count());
         }
+    }
+
+    public function test_failed_notifies_admins_when_no_video_exists_yet(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $script = $this->scriptWithCompletedStatus();
+
+        $job = new GenerateScenesJob($script->id);
+        $job->failed(new \RuntimeException('boom'));
+
+        $this->assertDatabaseCount('videos', 0);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['script_id'] === $script->id
+        );
+    }
+
+    public function test_failed_marks_an_existing_video_failed(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $script = $this->scriptWithCompletedStatus();
+        $video = Video::factory()->create([
+            'script_id' => $script->id,
+            'content_project_id' => $script->contentIdea->content_project_id,
+            'content_idea_id' => $script->content_idea_id,
+            'status' => VideoStatus::ScriptGenerated,
+        ]);
+
+        $job = new GenerateScenesJob($script->id);
+        $job->failed(new \RuntimeException('boom'));
+
+        $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
     }
 }

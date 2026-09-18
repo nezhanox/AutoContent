@@ -13,14 +13,14 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 180;
 
@@ -85,7 +85,13 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('video')->error('Scene generation failed permanently.', [
+        $video = Video::where('script_id', $this->scriptId)->first();
+
+        if ($video !== null) {
+            $video->update(['status' => VideoStatus::Failed]);
+        }
+
+        $this->notifyPermanentFailure('video', 'Scene generation failed permanently.', [
             'script_id' => $this->scriptId,
             'error' => $exception->getMessage(),
         ]);
