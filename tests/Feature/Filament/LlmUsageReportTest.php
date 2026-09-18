@@ -50,7 +50,7 @@ class LlmUsageReportTest extends TestCase
 
         Livewire::test(LlmUsageReport::class)
             ->assertSeeHtmlInOrder(['anthropic', 'openai'])
-            ->assertSee('300')
+            ->assertSee('450') // openai's total_tokens (150+300) — unique to that group, unlike '300'
             ->assertSee('50%');
     }
 }

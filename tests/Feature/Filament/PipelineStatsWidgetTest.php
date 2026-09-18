@@ -21,8 +21,14 @@ class PipelineStatsWidgetTest extends TestCase
 
     public function test_it_shows_pipeline_and_engagement_totals(): void
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        // Two admin users: NotifiesOnPermanentFailure sends one notification
+        // row PER admin (Notification::send(User::all(), ...)), so a widget
+        // that (incorrectly) counted every `notifications` row instead of the
+        // current viewer's own would report double the real failure count —
+        // a single-user fixture can't expose that bug.
+        $viewer = User::factory()->create();
+        $otherAdmin = User::factory()->create();
+        $this->actingAs($viewer);
 
         // Two videos rendered "today", one backdated 2 days — proves the
         // "Videos generated today" stat actually filters by date instead of
@@ -43,20 +49,31 @@ class PipelineStatsWidgetTest extends TestCase
             'measured_at' => now(),
         ]);
 
-        // 4 failure notifications sent "now", one of them backdated 2 days —
-        // proves "Failed jobs today" filters by date too (expected count: 3).
+        // 4 failure notifications sent "now" to both admins, one occurrence
+        // backdated 2 days for both — proves "Failed jobs today" filters by
+        // date (expected per-viewer count: 3), independent of admin count.
         for ($i = 0; $i < 4; $i++) {
-            Notification::send($user, new PipelineJobFailedNotification('boom', ['attempt' => $i]));
+            Notification::send([$viewer, $otherAdmin], new PipelineJobFailedNotification('boom', ['attempt' => $i]));
         }
-        $backdated = $user->notifications()->latest()->first();
-        $backdated->forceFill(['created_at' => now()->subDays(2)])->save();
+        $viewer->notifications()->latest()->first()->forceFill(['created_at' => now()->subDays(2)])->save();
+        $otherAdmin->notifications()->latest()->first()->forceFill(['created_at' => now()->subDays(2)])->save();
 
-        // Every asserted number below uses a distinct repeated digit (2, 4, 3, 5, 6, 7)
-        // so a wrong stat can't accidentally satisfy another stat's assertion.
+        // Assert the first three stats' raw values directly rather than via
+        // assertSee: a single/double-digit number appears incidentally all
+        // over a rendered Livewire payload (wire:snapshot JSON, checksums,
+        // Tailwind classes), so assertSee('2')-style checks pass regardless
+        // of whether the underlying query is even correct.
+        $stats = (function (): array {
+            return $this->getStats();
+        })->call(new PipelineStatsWidget);
+
+        $this->assertSame(2, $stats[0]->getValue()); // Videos generated today
+        $this->assertSame(4, $stats[1]->getValue()); // Videos published (cumulative)
+        $this->assertSame(3, $stats[2]->getValue()); // Failed jobs today
+
+        // Views/Likes/Comments are 5/4/2-digit sums with no plausible
+        // incidental collision in the rendered markup — assertSee is safe here.
         Livewire::test(PipelineStatsWidget::class)
-            ->assertSee('2') // Videos generated today
-            ->assertSee('4') // Videos published (cumulative)
-            ->assertSee('3') // Failed jobs today
             ->assertSee('55555') // Views
             ->assertSee('6666') // Likes
             ->assertSee('77'); // Comments
