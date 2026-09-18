@@ -9,7 +9,10 @@ use App\Models\ContentProject;
 use App\Models\Enums\ContentIdeaStatus;
 use App\Models\Enums\ScriptStatus;
 use App\Models\Script;
+use App\Models\User;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class GenerateScriptJobTest extends TestCase
@@ -141,6 +144,9 @@ class GenerateScriptJobTest extends TestCase
 
     public function test_failed_marks_the_script_failed_and_reverts_the_idea_to_approved(): void
     {
+        Notification::fake();
+        User::factory()->create();
+
         $idea = ContentIdea::factory()->create(['status' => ContentIdeaStatus::Processing]);
         $script = Script::factory()->create([
             'content_idea_id' => $idea->id,
@@ -154,5 +160,11 @@ class GenerateScriptJobTest extends TestCase
         $this->assertSame(ScriptStatus::Failed, $script->fresh()->status);
         $this->assertSame('LLM unavailable', $script->fresh()->metadata['error']);
         $this->assertSame(ContentIdeaStatus::Approved, $idea->fresh()->status);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['content_idea_id'] === $idea->id
+        );
     }
 }

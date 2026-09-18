@@ -12,13 +12,13 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class GenerateScriptJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable, InteractsWithQueue, NotifiesOnPermanentFailure, Queueable;
 
     public int $timeout = 180;
 
@@ -101,7 +101,7 @@ class GenerateScriptJob implements ShouldBeUnique, ShouldQueue
             $idea->update(['status' => ContentIdeaStatus::Approved]);
         }
 
-        Log::channel('content')->error('Script generation failed permanently.', [
+        $this->notifyPermanentFailure('content', 'Script generation failed permanently.', [
             'content_idea_id' => $idea->id,
             'error' => $exception->getMessage(),
         ]);
