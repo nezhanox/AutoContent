@@ -1129,18 +1129,12 @@ class TopTopicsWidgetTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        $hotIdea = ContentIdea::factory()->create(['topic' => 'AI News']);
-        $hotVideo = Video::factory()->create(['content_idea_id' => $hotIdea->id]);
-        $hotPublication = Publication::factory()->create([
-            'video_id' => $hotVideo->id,
-            'status' => PublicationStatus::Published,
-        ]);
-        VideoMetric::factory()->create([
-            'publication_id' => $hotPublication->id,
-            'views' => 5000,
-            'measured_at' => now(),
-        ]);
-
+        // Created in reverse of the expected sort order — Gardening Tips first —
+        // so a query that dropped its `orderByDesc` and fell back to insertion/
+        // scan order would produce ['Gardening Tips', 'AI News'] and fail this
+        // assertion, instead of accidentally passing (see Task 7's fix-loop
+        // finding: an earlier "hot first, cold second" fixture couldn't
+        // distinguish a real sort from incidental insertion order).
         $coldIdea = ContentIdea::factory()->create(['topic' => 'Gardening Tips']);
         $coldVideo = Video::factory()->create(['content_idea_id' => $coldIdea->id]);
         $coldPublication = Publication::factory()->create([
@@ -1150,6 +1144,18 @@ class TopTopicsWidgetTest extends TestCase
         VideoMetric::factory()->create([
             'publication_id' => $coldPublication->id,
             'views' => 20,
+            'measured_at' => now(),
+        ]);
+
+        $hotIdea = ContentIdea::factory()->create(['topic' => 'AI News']);
+        $hotVideo = Video::factory()->create(['content_idea_id' => $hotIdea->id]);
+        $hotPublication = Publication::factory()->create([
+            'video_id' => $hotVideo->id,
+            'status' => PublicationStatus::Published,
+        ]);
+        VideoMetric::factory()->create([
+            'publication_id' => $hotPublication->id,
+            'views' => 5000,
             'measured_at' => now(),
         ]);
 
