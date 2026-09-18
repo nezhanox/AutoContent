@@ -13,7 +13,7 @@ class Publication extends Model
     use HasFactory;
 
     protected $fillable = [
-        'video_id', 'social_account_id', 'scheduled_at', 'published_at',
+        'video_id', 'social_account_id', 'caption', 'hashtags', 'scheduled_at', 'published_at',
         'external_post_id', 'status', 'error_message', 'metadata',
     ];
 
@@ -23,6 +23,7 @@ class Publication extends Model
             'scheduled_at' => 'datetime',
             'published_at' => 'datetime',
             'status' => PublicationStatus::class,
+            'hashtags' => 'array',
             'metadata' => 'array',
         ];
     }

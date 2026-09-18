@@ -14,6 +14,8 @@ class PublicationFactory extends Factory
         return [
             'video_id' => Video::factory(),
             'social_account_id' => SocialAccount::factory(),
+            'caption' => null,
+            'hashtags' => [],
             'scheduled_at' => null,
             'published_at' => null,
             'external_post_id' => null,
