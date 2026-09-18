@@ -7,4 +7,6 @@ use App\Models\Publication;
 interface SocialPublisherInterface
 {
     public function publish(Publication $publication): PublishResult;
+
+    public function fetchMetrics(Publication $publication): VideoMetricsResult;
 }

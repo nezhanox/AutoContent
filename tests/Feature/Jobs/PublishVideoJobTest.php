@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Domain\Publishing\Providers\FakeSocialPublisher;
 use App\Domain\Publishing\PublishResult;
 use App\Domain\Publishing\SocialPublisherInterface;
+use App\Domain\Publishing\VideoMetricsResult;
 use App\Jobs\PublishVideoJob;
 use App\Models\Enums\PublicationStatus;
 use App\Models\Publication;
@@ -68,6 +69,11 @@ class PublishVideoJobTest extends TestCase
                     $this->counter->callCount++;
 
                     return new PublishResult(externalPostId: 'ext-1');
+                }
+
+                public function fetchMetrics(Publication $publication): VideoMetricsResult
+                {
+                    throw new \LogicException('fetchMetrics is not exercised by this test.');
                 }
             };
         });
