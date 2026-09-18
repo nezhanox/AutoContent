@@ -321,26 +321,132 @@ Phase 3 (усі під-фази 3a–3e) закрито.
 
 ---
 
-## Phase 4 — Publishing
+## Phase 4 — Publishing ✅ завершено (2026-09-18)
 
 Мета: черга публікацій, ідемпотентність, multi-platform caption/hashtags.
 
 Deliverables:
 
-* [ ] `SocialPublisherInterface` + `FakeSocialPublisher`
-* [ ] `SocialAccount`, `Publication` CRUD у Filament + Calendar view
-* [ ] `PublishVideoJob`: ідемпотентний (unique job / lock по `publication_id`)
-* [ ] Laravel Scheduler: `publications.status=scheduled AND scheduled_at<=now()` →
-      dispatch `PublishVideoJob` (розділ 16 ТЗ)
-* [ ] Генерація caption/hashtags per platform (purpose=`captions` через `LlmManager`) —
-      один `Script`/`ContentIdea` може мати різні `Video`/`Publication`/Caption для
-      TikTok/YouTube/Instagram/X (розділ 27 ТЗ, критична вимога — не прив'язувати
-      `ContentIdea`/`Script` до конкретної платформи)
-* [ ] Feature-тести: publication creation, duplicate publication prevention, failed jobs
+* [x] `SocialPublisherInterface` + `FakeSocialPublisher`
+      (`app/Domain/Publishing/SocialPublisherInterface.php`,
+      `app/Domain/Publishing/Providers/FakeSocialPublisher.php`), зареєстрований у
+      `PublishingServiceProvider`
+* [x] `SocialAccount`, `Publication` CRUD у Filament — `SocialAccountForm` з
+      password-masked/`revealable()` `access_token`/`refresh_token`, `PublicationForm`
+      з реактивним `video_id → social_account_id` select, caption/hashtags,
+      derived-status відображенням, `PublicationsTable` з фільтрами і дією
+      "Generate Captions" (`app/Filament/Resources/SocialAccounts/`,
+      `app/Filament/Resources/Publications/`). Calendar view з дизайн-спеку
+      свідомо не реалізовано — `filament-fullcalendar` вимагав beta-залежності
+      (рішення зафіксовано в
+      `docs/superpowers/specs/2026-09-17-phase4-publishing-design.md` ще до старту
+      Task 1), список/фільтри `PublicationsTable` закривають ту саму потребу
+      перегляду розкладу публікацій.
+* [x] `PublishVideoJob`: ідемпотентний (`ShouldBeUnique` по `publication_id` +
+      status-guard `status !== Scheduled` на вході в `handle()`) —
+      `app/Jobs/PublishVideoJob.php`
+* [x] Laravel Scheduler: `publications:dispatch-due` command
+      (`app/Console/Commands/DispatchDuePublicationsCommand.php`, вибирає
+      `status=Scheduled AND scheduled_at<=now()`), зареєстрований у
+      `routes/console.php` на щохвилинний тик (розділ 16 ТЗ)
+* [x] Генерація caption/hashtags per platform — `GenerateCaptionsService` (purpose=
+      `captions` через `LlmManager`, retry/repair на invalid JSON) +
+      `GenerateCaptionsJob`, викликається з `PublicationsTable`'s "Generate Captions"
+      — прив'язані до конкретного `Publication`/`SocialAccount`, а не до `Script`/
+      `ContentIdea`, тож один `Script` може мати різні captions для TikTok/YouTube/
+      Instagram/X (розділ 27 ТЗ)
+* [x] Feature-тести: publication creation (`PublicationTest`), ідемпотентність
+      (`PublishVideoJobTest`'s "calling handle twice does not publish twice"),
+      failed jobs (`PublishVideoJobTest`'s "failed marks the publication failed and
+      sends a notification"), plus caption generation (`GenerateCaptionsServiceTest`,
+      `GenerateCaptionsJobTest`) і database-notifications інфраструктура
+      (`NotifiesOnPermanentFailure`, тепер підключена і до 4 video-pipeline jobs, які
+      цього чекали з Phase 2/3e review)
 
 DoD: пункти 11–16 DoD (розділ 24 ТЗ) — Publication, scheduled_at, автоматичний запуск
 через Queue, `FakePublisher` → `published`, повторний запуск без дублю, помилки видно в
-admin panel.
+admin panel. **Перевірено** — 205/205 тестів, `pint` (auto-fixed 5 файлів: import order
+у `GenerateScenesJob`/`GenerateScriptJob`/`RenderVideoJob`, brace-style у двох
+тестах — жодних логічних змін, тести перепрогнано після фіксу, ще раз 205/205),
+`route:list` (`admin/social-accounts`, `admin/publications` присутні, 68 маршрутів,
+без помилок), `migrate:fresh --seed` (усі 20 міграцій, включно з
+`publications.caption`/`hashtags` і `notifications`, застосувались чисто, сідер
+відпрацював). Усі 6 DoD-сценаріїв (пп. 11–16) вручну пройдено через
+`php artisan tinker`:
+1. `Publication::create()` для існуючих `Video`/`SocialAccount` — створено успішно
+   (DoD 11).
+2. `scheduled_at` у майбутнє + застосування `AppliesScheduledStatus`-логіки → `status`
+   стає `Scheduled` (DoD 12).
+3. `scheduled_at` у минуле, `publications:dispatch-due` під `Queue::fake()` →
+   `PublishVideoJob` запушено з правильним `publicationId` (DoD 13).
+4. `PublishVideoJob::dispatchSync()` з `FakeSocialPublisher` → `status=Published`,
+   `external_post_id` і `published_at` заповнені (DoD 14).
+5. Повторний виклик `dispatch-due` на вже `Published`-записі не пушить job вдруге;
+   прямий повторний виклик `handle()` на тому самому job — guard
+   (`status !== Scheduled`) no-op, жодне поле не змінюється (DoD 15).
+6. Прив'язано throwing-реалізацію `SocialPublisherInterface`, викликано
+   `handle()` (кинуло виняток, `status` завис на `Publishing` — та сама відома
+   стрендинг-поведінка, що й у `RenderVideoJob`, див. нижче), потім вручну викликано
+   `$job->failed($exception)` (симулюючи вичерпання retries воркером) →
+   `status=Failed`, у таблиці `notifications` з'явився рядок
+   `PipelineJobFailedNotification` з `publication_id`/error у `data`.
+
+Spec: `docs/superpowers/specs/2026-09-17-phase4-publishing-design.md`
+Plan: `docs/superpowers/plans/2026-09-17-phase4-publishing.md`
+
+**Для Phase 5+ — врахувати (з фінальних review Tasks 1–16):**
+* `PublishVideoJob::handle()` (`app/Jobs/PublishVideoJob.php`) ставить
+  `status=Publishing` до фолібельного виклику `publisher->publish()`; якщо той
+  кидає виняток, Laravel ретраїть за `backoff()`, але повторна спроба бачить
+  `status=Publishing` (не `Scheduled`), guard no-op'ає без винятку, тож `failed()`
+  ніколи не викликається і `Publication` назавжди застряє в `Publishing` без
+  переходу в `Failed`/нотифікації. Той самий, вже відомий з Phase 3e патерн
+  (`RenderVideoJob::handle()`) — Phase 4 його теж не закрив. Підтверджено вручну під
+  час DoD-верифікації (сценарій 6 вище).
+* `NotifiesOnPermanentFailure` (`app/Jobs/Concerns/NotifiesOnPermanentFailure.php`)
+  не має throttling/dedup — кожен permanent failure нотифікує `User::all()` без
+  rate limit; retry storm по кількох jobs може заспамити всіх адмінів дублікатами
+  database-нотифікацій.
+* `GenerateCaptionsServiceTest`
+  (`tests/Unit/Domain/Publishing/GenerateCaptionsServiceTest.php`) не покриває
+  mid-loop repair-success шлях і `parse()`'s гілки валідації полів — лише "succeeds
+  immediately" і "always invalid → throws", той самий gap, що й у прописаному в
+  плані тестовому коді.
+* `EditSocialAccount`'s форма попередньо заповнює розшифровані
+  `access_token`/`refresh_token` (`app/Filament/Resources/SocialAccounts/Schemas/
+  SocialAccountForm.php`) у браузерний payload з `revealable()`-тогглом — прийнятно
+  для admin-only доступу, але варто мати на увазі, що edit віддає повний
+  розшифрований секрет у форму, на відміну від поширеної альтернативи "лишити
+  порожнім, перезаписати лише якщо заповнено".
+* `PublicationForm`'s каскад `video_id → social_account_id`
+  (`app/Filament/Resources/Publications/Schemas/PublicationForm.php`) не скидає
+  застарілий вибір: зміна `video_id` після того, як `social_account_id` вже
+  вибрано, не чистить (можливо тепер cross-project) `social_account_id` —
+  `afterStateUpdated`-скидання відсутнє, і save-time логіка Task 14 це теж не
+  валідує.
+* `AppliesScheduledStatus`'s межовий випадок `scheduled_at === now()`
+  (`app/Filament/Resources/Publications/Concerns/AppliesScheduledStatus.php`)
+  резолвиться в `Draft`, не `Scheduled` — `Carbon::isFuture()` вважає рівно-зараз
+  не-майбутнім; латентний edge case, жодним тестом не покритий.
+* `PublicationsTable`'s фільтр діапазону `scheduled_at`
+  (`app/Filament/Resources/Publications/Tables/PublicationsTable.php`) коректно
+  підтримує лише `scheduled_from` або лише `scheduled_until` окремо, але це не
+  покрито жодним тестом.
+* `PublicationFactory`'s closure для `social_account_id`
+  (`database/factories/PublicationFactory.php`) викликає
+  `SocialAccount::factory()->create()` напряму, минаючи `Model::factory()->
+  recycle()` — не підтримає майбутній виклик `Publication::factory()->
+  recycle($account)`. Сьогодні інертно (жоден call site `recycle()` не
+  використовує).
+* `database/migrations/2026_09_18_090752_create_notifications_table.php` відредаговано
+  на місці (`text('data')` → `json('data')`) вже після створення й аплуву в
+  попередньому task цього ж плану — знадобилось, коли з'ясувалось, що Filament's
+  `DatabaseNotifications`-компонент вимагає нативних Postgres JSON-path запитів,
+  яких `text`-колонка не підтримує. Безпечно, бо жодне інше оточення ще не
+  прогнало оригінальну міграцію (єдиний, ще не змерджений worktree) — але
+  зазначено для обізнаності: редагування історії міграцій на місці не є
+  загальнобезпечним патерном (нова міграція була б ним, якби це вже не було
+  pre-merge).
 
 ---
 
