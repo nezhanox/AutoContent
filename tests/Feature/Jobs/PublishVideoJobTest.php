@@ -56,13 +56,26 @@ class PublishVideoJobTest extends TestCase
 
     public function test_calling_handle_twice_does_not_publish_twice(): void
     {
-        $this->bindFakePublisher(new PublishResult(externalPostId: 'ext-1'));
+        $counter = (object) ['callCount' => 0];
+
+        $this->app->bind(SocialPublisherInterface::class, function () use ($counter) {
+            return new class($counter) implements SocialPublisherInterface {
+                public function __construct(private object $counter) {}
+
+                public function publish(Publication $publication): PublishResult
+                {
+                    $this->counter->callCount++;
+                    return new PublishResult(externalPostId: 'ext-1');
+                }
+            };
+        });
 
         $publication = Publication::factory()->create(['status' => PublicationStatus::Scheduled]);
 
         app()->call([new PublishVideoJob($publication->id), 'handle']);
         app()->call([new PublishVideoJob($publication->id), 'handle']);
 
+        $this->assertSame(1, $counter->callCount);
         $this->assertSame('ext-1', $publication->fresh()->external_post_id);
         $this->assertSame(PublicationStatus::Published, $publication->fresh()->status);
     }
