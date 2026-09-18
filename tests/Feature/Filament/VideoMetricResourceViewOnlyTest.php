@@ -35,8 +35,9 @@ class VideoMetricResourceViewOnlyTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $publication = Publication::factory()->create(['status' => PublicationStatus::Published]);
-        VideoMetric::factory()->create(['publication_id' => $publication->id, 'views' => 4242]);
+        // Under 1000: the views column's ->numeric() formatting inserts a thousands separator above that (e.g. "4,242"), which would break a literal assertSee.
+        VideoMetric::factory()->create(['publication_id' => $publication->id, 'views' => 999]);
 
-        $this->get('/admin/video-metrics')->assertSuccessful()->assertSee('4242');
+        $this->get('/admin/video-metrics')->assertSuccessful()->assertSee('999');
     }
 }
