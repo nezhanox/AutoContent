@@ -24,6 +24,13 @@ class SocialAccountForm
                     ->required(),
                 TextInput::make('username')
                     ->required(),
+                TextInput::make('access_token')
+                    ->password()
+                    ->revealable()
+                    ->required(),
+                TextInput::make('refresh_token')
+                    ->password()
+                    ->revealable(),
                 DateTimePicker::make('token_expires_at'),
                 TextInput::make('metadata')
                     ->required()

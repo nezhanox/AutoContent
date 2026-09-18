@@ -23,14 +23,6 @@ class SocialAccountResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Publishing';
 
-    public static function canCreate(): bool
-    {
-        // `social_accounts.access_token` is NOT NULL and is deliberately absent from the
-        // form — tokens arrive via OAuth in a later phase — so a hand-made Create could
-        // only ever fail with a not-null constraint violation.
-        return false;
-    }
-
     public static function form(Schema $schema): Schema
     {
         return SocialAccountForm::configure($schema);
