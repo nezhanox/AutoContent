@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Content\Services\GenerateScriptService;
 use App\Domain\Llm\LlmManagerInterface;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\ContentIdea;
 use App\Models\Enums\ContentIdeaStatus;
 use App\Models\Enums\ScriptStatus;
@@ -12,7 +13,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
 use Throwable;
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Domain\Publishing;
 
+use App\Domain\Llm\LlmManagerInterface;
 use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Domain\Publishing\Exceptions\CaptionGenerationFailedException;
 use App\Domain\Publishing\Services\GenerateCaptionsService;
@@ -46,7 +47,7 @@ class GenerateCaptionsServiceTest extends TestCase
         });
 
         $publication = $this->publicationWithVideo()->load('video.contentProject', 'socialAccount');
-        $target = app(\App\Domain\Llm\LlmManagerInterface::class)->resolve($publication->video->contentProject, 'captions');
+        $target = app(LlmManagerInterface::class)->resolve($publication->video->contentProject, 'captions');
 
         $service = app(GenerateCaptionsService::class);
         $result = $service->generate($publication, $target);
@@ -65,7 +66,7 @@ class GenerateCaptionsServiceTest extends TestCase
         });
 
         $publication = $this->publicationWithVideo()->load('video.contentProject', 'socialAccount');
-        $target = app(\App\Domain\Llm\LlmManagerInterface::class)->resolve($publication->video->contentProject, 'captions');
+        $target = app(LlmManagerInterface::class)->resolve($publication->video->contentProject, 'captions');
 
         $service = app(GenerateCaptionsService::class);
 

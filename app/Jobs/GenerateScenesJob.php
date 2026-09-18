@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Llm\LlmManagerInterface;
 use App\Domain\Video\Services\GenerateScenesService;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\ScriptStatus;
 use App\Models\Enums\VideoStatus;
 use App\Models\Script;
@@ -13,7 +14,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
 use Throwable;

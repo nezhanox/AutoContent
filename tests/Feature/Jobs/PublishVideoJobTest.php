@@ -59,12 +59,14 @@ class PublishVideoJobTest extends TestCase
         $counter = (object) ['callCount' => 0];
 
         $this->app->bind(SocialPublisherInterface::class, function () use ($counter) {
-            return new class($counter) implements SocialPublisherInterface {
+            return new class($counter) implements SocialPublisherInterface
+            {
                 public function __construct(private object $counter) {}
 
                 public function publish(Publication $publication): PublishResult
                 {
                     $this->counter->callCount++;
+
                     return new PublishResult(externalPostId: 'ext-1');
                 }
             };

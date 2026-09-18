@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Video\VideoRendererInterface;
+use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -10,7 +11,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
 use Throwable;
