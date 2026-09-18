@@ -93,6 +93,7 @@ class PublishVideoJobTest extends TestCase
         $job->failed(new \RuntimeException('API unavailable'));
 
         $this->assertSame(PublicationStatus::Failed, $publication->fresh()->status);
+        $this->assertStringContainsString('API unavailable', $publication->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),

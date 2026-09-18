@@ -57,6 +57,10 @@ class PublicationForm
                 DateTimePicker::make('published_at')
                     ->disabled()
                     ->dehydrated(false),
+                Textarea::make('error_message')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->columnSpanFull(),
             ]);
     }
 }

@@ -8,8 +8,11 @@ use App\Models\ContentProject;
 use App\Models\Enums\PublicationStatus;
 use App\Models\Publication;
 use App\Models\SocialAccount;
+use App\Models\User;
 use App\Models\Video;
+use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class GenerateCaptionsJobTest extends TestCase
@@ -64,13 +67,53 @@ class GenerateCaptionsJobTest extends TestCase
         $this->assertSame('Already there', $publication->fresh()->caption);
     }
 
-    public function test_it_is_a_no_op_when_the_publication_is_not_draft(): void
+    public function test_it_is_a_no_op_when_the_publication_is_publishing_or_later(): void
     {
+        $publication = $this->draftPublication();
+        $publication->update(['status' => PublicationStatus::Publishing]);
+
+        app()->call([new GenerateCaptionsJob($publication->id), 'handle']);
+
+        $this->assertNull($publication->fresh()->caption);
+    }
+
+    public function test_it_generates_a_caption_for_a_scheduled_publication(): void
+    {
+        config()->set('llm.default_provider', 'fake');
+        config()->set('llm.default_model', 'fake-model');
+
+        $this->app->bind(FakeLlmProvider::class, function () {
+            return (new FakeLlmProvider)->respondWith(
+                json_encode(['caption' => 'Rice made easy!', 'hashtags' => ['cooking', 'rice']])
+            );
+        });
+
         $publication = $this->draftPublication();
         $publication->update(['status' => PublicationStatus::Scheduled]);
 
         app()->call([new GenerateCaptionsJob($publication->id), 'handle']);
 
-        $this->assertNull($publication->fresh()->caption);
+        $fresh = $publication->fresh();
+        $this->assertSame('Rice made easy!', $fresh->caption);
+        $this->assertSame(['cooking', 'rice'], $fresh->hashtags);
+    }
+
+    public function test_failed_notifies_admins_and_records_the_error_message(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $publication = $this->draftPublication();
+
+        $job = new GenerateCaptionsJob($publication->id);
+        $job->failed(new \RuntimeException('LLM unavailable'));
+
+        $this->assertStringContainsString('LLM unavailable', $publication->fresh()->error_message);
+
+        Notification::assertSentTo(
+            User::all(),
+            PipelineJobFailedNotification::class,
+            fn (PipelineJobFailedNotification $notification): bool => $notification->context['publication_id'] === $publication->id
+        );
     }
 }

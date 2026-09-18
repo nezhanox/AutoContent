@@ -41,13 +41,25 @@ class PublicationGenerateCaptionsActionTest extends TestCase
             ->assertTableActionHidden('generateCaptions', $publication);
     }
 
-    public function test_generate_captions_action_is_not_visible_once_scheduled(): void
+    public function test_generate_captions_action_is_visible_once_scheduled_with_no_caption(): void
     {
         $this->actingAs(User::factory()->create());
 
         $publication = Publication::factory()->create(['status' => PublicationStatus::Scheduled, 'caption' => null]);
 
         Livewire::test(ListPublications::class)
-            ->assertTableActionHidden('generateCaptions', $publication);
+            ->assertTableActionVisible('generateCaptions', $publication);
+    }
+
+    public function test_generate_captions_action_is_not_visible_once_publishing_or_later(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        foreach ([PublicationStatus::Publishing, PublicationStatus::Published, PublicationStatus::Failed] as $status) {
+            $publication = Publication::factory()->create(['status' => $status, 'caption' => null]);
+
+            Livewire::test(ListPublications::class)
+                ->assertTableActionHidden('generateCaptions', $publication);
+        }
     }
 }

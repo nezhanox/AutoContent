@@ -68,7 +68,7 @@ class PublicationsTable
             ->recordActions([
                 Action::make('generateCaptions')
                     ->label('Generate Captions')
-                    ->visible(fn (Publication $record): bool => $record->status === PublicationStatus::Draft
+                    ->visible(fn (Publication $record): bool => in_array($record->status, [PublicationStatus::Draft, PublicationStatus::Scheduled], true)
                         && $record->caption === null)
                     ->requiresConfirmation()
                     ->action(function (Publication $record): void {

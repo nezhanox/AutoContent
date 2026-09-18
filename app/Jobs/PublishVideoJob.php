@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class PublishVideoJob implements ShouldBeUnique, ShouldQueue
@@ -63,7 +64,10 @@ class PublishVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Publication::whereKey($this->publicationId)->update(['status' => PublicationStatus::Failed]);
+        Publication::whereKey($this->publicationId)->update([
+            'status' => PublicationStatus::Failed,
+            'error_message' => Str::limit($exception->getMessage(), 1000),
+        ]);
 
         $this->notifyPermanentFailure('publishing', 'Publication failed permanently.', [
             'publication_id' => $this->publicationId,

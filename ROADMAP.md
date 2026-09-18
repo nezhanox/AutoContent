@@ -348,20 +348,24 @@ Deliverables:
 * [x] Laravel Scheduler: `publications:dispatch-due` command
       (`app/Console/Commands/DispatchDuePublicationsCommand.php`, вибирає
       `status=Scheduled AND scheduled_at<=now()`), зареєстрований у
-      `routes/console.php` на щохвилинний тик (розділ 16 ТЗ)
+      `bootstrap/app.php`'s `withSchedule()` на щохвилинний тик (розділ 16 ТЗ)
 * [x] Генерація caption/hashtags per platform — `GenerateCaptionsService` (purpose=
       `captions` через `LlmManager`, retry/repair на invalid JSON) +
       `GenerateCaptionsJob`, викликається з `PublicationsTable`'s "Generate Captions"
       — прив'язані до конкретного `Publication`/`SocialAccount`, а не до `Script`/
       `ContentIdea`, тож один `Script` може мати різні captions для TikTok/YouTube/
       Instagram/X (розділ 27 ТЗ)
-* [x] Feature-тести: publication creation (`PublicationTest`), ідемпотентність
-      (`PublishVideoJobTest`'s "calling handle twice does not publish twice"),
-      failed jobs (`PublishVideoJobTest`'s "failed marks the publication failed and
-      sends a notification"), plus caption generation (`GenerateCaptionsServiceTest`,
-      `GenerateCaptionsJobTest`) і database-notifications інфраструктура
-      (`NotifiesOnPermanentFailure`, тепер підключена і до 4 video-pipeline jobs, які
-      цього чекали з Phase 2/3e review)
+* [x] Feature-тести: publication creation (`PublicationScheduleFormTest`),
+      ідемпотентність (`PublishVideoJobTest`'s "calling handle twice does not publish
+      twice"), failed jobs (`PublishVideoJobTest`'s "failed marks the publication
+      failed and sends a notification"), plus caption generation
+      (`GenerateCaptionsServiceTest`, `GenerateCaptionsJobTest`) і
+      database-notifications інфраструктура (`NotifiesOnPermanentFailure`, підключена
+      до 6 video-pipeline jobs (`CollectVideoAssetsJob`, `GenerateScenesJob`,
+      `GenerateSubtitlesJob`, `GenerateVoiceoverJob`, `QualityCheckVideoJob`,
+      `RenderVideoJob`), які цього чекали з Phase 2/3e review, плюс
+      `GenerateScriptJob` і `PublishVideoJob` — 8 jobs total; після фінального
+      fix wave цього ж плану до них додався й `GenerateCaptionsJob` — 9 jobs)
 
 DoD: пункти 11–16 DoD (розділ 24 ТЗ) — Publication, scheduled_at, автоматичний запуск
 через Queue, `FakePublisher` → `published`, повторний запуск без дублю, помилки видно в
@@ -402,7 +406,25 @@ Plan: `docs/superpowers/plans/2026-09-17-phase4-publishing.md`
   ніколи не викликається і `Publication` назавжди застряє в `Publishing` без
   переходу в `Failed`/нотифікації. Той самий, вже відомий з Phase 3e патерн
   (`RenderVideoJob::handle()`) — Phase 4 його теж не закрив. Підтверджено вручну під
-  час DoD-верифікації (сценарій 6 вище).
+  час DoD-верифікації (сценарій 6 вище). Критичність вища, ніж просто "автоматичний
+  retry не рятує": наразі немає і ручного шляху відновлення через admin panel —
+  `PublicationForm`'s поле `status` навмисно `disabled()`/`dehydrated(false)`
+  (тільки pipeline може його міняти), тож застряглий у `Publishing` або `Failed`
+  запис неможливо вручну скинути назад у `Scheduled`/`Draft` через UI — лише
+  прямим SQL/tinker.
+* `DispatchDuePublicationsCommand` (`app/Console/Commands/DispatchDuePublicationsCommand.php`)
+  диспатчить `PublishVideoJob` для кожної due `Scheduled`-публікації, не
+  перевіряючи, що її `Video` дійсно завершив рендеринг (`Video.status === Rendered`)
+  — публікація, запланована до завершення рендерингу відео, спробує "опублікувати"
+  ще не готове відео. Сьогодні нешкідливо проти `FakeSocialPublisher`, але потребує
+  guard'а до того, як Phase 6 додасть реальні social API.
+* `NotifiesOnPermanentFailure` (тепер використовується всіма 9 pipeline jobs після
+  цього fix wave) записує `$exception->getMessage()` дослівно в колонку `data`
+  нотифікації, розсилаючи її всім адмінам. Нормально сьогодні, бо кожен throw —
+  внутрішній (services, `FakeSocialPublisher`), але це forward risk, щойно Phase 6
+  додасть реальні HTTP-based social API клієнти — HTTP client exceptions регулярно
+  містять повний request URI, а OAuth-style API часто носять токени/секрети у query
+  string. Треба санітизувати/редагувати повідомлення до появи реальних publishers.
 * `NotifiesOnPermanentFailure` (`app/Jobs/Concerns/NotifiesOnPermanentFailure.php`)
   не має throttling/dedup — кожен permanent failure нотифікує `User::all()` без
   rate limit; retry storm по кількох jobs може заспамити всіх адмінів дублікатами
