@@ -20,17 +20,10 @@ class BestVideosWidgetTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        $topVideo = Video::factory()->create(['title' => 'Top Video']);
-        $topPublication = Publication::factory()->create([
-            'video_id' => $topVideo->id,
-            'status' => PublicationStatus::Published,
-        ]);
-        VideoMetric::factory()->create([
-            'publication_id' => $topPublication->id,
-            'views' => 9000,
-            'measured_at' => now(),
-        ]);
-
+        // Created in reverse of the expected sort order — Low Video first — so
+        // a query that dropped its `orderByDesc` and fell back to insertion/scan
+        // order would produce ['Low Video', 'Top Video'] and fail this assertion,
+        // instead of accidentally passing.
         $lowVideo = Video::factory()->create(['title' => 'Low Video']);
         $lowPublication = Publication::factory()->create([
             'video_id' => $lowVideo->id,
@@ -39,6 +32,17 @@ class BestVideosWidgetTest extends TestCase
         VideoMetric::factory()->create([
             'publication_id' => $lowPublication->id,
             'views' => 10,
+            'measured_at' => now(),
+        ]);
+
+        $topVideo = Video::factory()->create(['title' => 'Top Video']);
+        $topPublication = Publication::factory()->create([
+            'video_id' => $topVideo->id,
+            'status' => PublicationStatus::Published,
+        ]);
+        VideoMetric::factory()->create([
+            'publication_id' => $topPublication->id,
+            'views' => 9000,
             'measured_at' => now(),
         ]);
 
