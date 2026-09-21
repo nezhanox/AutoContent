@@ -28,3 +28,6 @@ Homestead.yaml
 Thumbs.db
 .worktrees/
 /.superpowers/
+
+# Local Python venv for the whisper CLI (see .env WHISPER_PYTHON_BINARY)
+/.venv-whisper/

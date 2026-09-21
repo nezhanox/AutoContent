@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Llm\Providers\AnthropicLlmProvider;
+use App\Domain\Llm\Providers\DeepSeekLlmProvider;
 use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Domain\Llm\Providers\OpenAiLlmProvider;
 
@@ -16,6 +17,16 @@ return [
             'models' => [
                 'gpt-4o' => ['input_cost_per_1k' => 0.0025, 'output_cost_per_1k' => 0.01],
                 'gpt-4o-mini' => ['input_cost_per_1k' => 0.00015, 'output_cost_per_1k' => 0.0006],
+            ],
+        ],
+
+        'deepseek' => [
+            'driver' => DeepSeekLlmProvider::class,
+            'api_key' => env('DEEPSEEK_API_KEY'),
+            'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+            'models' => [
+                'deepseek-chat' => ['input_cost_per_1k' => 0.00027, 'output_cost_per_1k' => 0.0011],
+                'deepseek-reasoner' => ['input_cost_per_1k' => 0.00055, 'output_cost_per_1k' => 0.00219],
             ],
         ],
 
