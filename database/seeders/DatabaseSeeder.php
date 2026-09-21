@@ -66,5 +66,7 @@ class DatabaseSeeder extends Seeder
 
                 LlmUsageLog::factory()->count(2)->create(['content_project_id' => $project->id]);
             });
+
+        $this->call(StoicismQuotesSeeder::class);
     }
 }

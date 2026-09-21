@@ -96,4 +96,40 @@ class AssSubtitleFormatterTest extends TestCase
 
         $this->assertStringContainsString('Dialogue: 0,0:00:02.00,0:00:02.00,Default,Carries', $ass);
     }
+
+    public function test_it_leaves_text_unstyled_when_accent_colours_are_not_configured(): void
+    {
+        $ass = AssSubtitleFormatter::format([
+            ['start' => 0.0, 'end' => 1.0, 'text' => 'Ты проявляешь силу и слабость'],
+        ], $this->style());
+
+        $this->assertStringContainsString('Dialogue: 0,0:00:00.00,0:00:01.00,Default,Ты проявляешь силу и слабость', $ass);
+    }
+
+    public function test_it_colours_a_positive_stem_word_when_accent_colours_are_configured(): void
+    {
+        $ass = AssSubtitleFormatter::format([
+            ['start' => 0.0, 'end' => 1.0, 'text' => 'Ты проявляешь силу'],
+        ], $this->style(['accent_colour_positive' => '&H0000FFFF', 'accent_colour_negative' => '&H000000FF']));
+
+        $this->assertStringContainsString('Ты проявляешь {\\c&H0000FFFF&}силу{\\c}', $ass);
+    }
+
+    public function test_it_colours_a_negative_stem_word_when_accent_colours_are_configured(): void
+    {
+        $ass = AssSubtitleFormatter::format([
+            ['start' => 0.0, 'end' => 1.0, 'text' => 'Это твоя слабость'],
+        ], $this->style(['accent_colour_positive' => '&H0000FFFF', 'accent_colour_negative' => '&H000000FF']));
+
+        $this->assertStringContainsString('Это твоя {\\c&H000000FF&}слабость{\\c}', $ass);
+    }
+
+    public function test_it_leaves_unmatched_words_uncoloured_even_with_accent_colours_configured(): void
+    {
+        $ass = AssSubtitleFormatter::format([
+            ['start' => 0.0, 'end' => 1.0, 'text' => 'Привет мир'],
+        ], $this->style(['accent_colour_positive' => '&H0000FFFF', 'accent_colour_negative' => '&H000000FF']));
+
+        $this->assertStringContainsString('Dialogue: 0,0:00:00.00,0:00:01.00,Default,Привет мир', $ass);
+    }
 }

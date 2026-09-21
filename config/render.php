@@ -25,6 +25,10 @@ return [
         'margin_h' => (int) env('RENDER_SUBTITLE_MARGIN_H', 60),
         'primary_colour' => env('RENDER_SUBTITLE_COLOR', '&H00FFFFFF'),
         'outline_colour' => env('RENDER_SUBTITLE_OUTLINE_COLOR', '&H00000000'),
+        // Per-word colour overrides applied by CaptionHighlighter based on the
+        // word's stem (e.g. "сил-" => positive/yellow, "слаб-" => negative/red).
+        'accent_colour_positive' => env('RENDER_SUBTITLE_ACCENT_POSITIVE', '&H0000FFFF'),
+        'accent_colour_negative' => env('RENDER_SUBTITLE_ACCENT_NEGATIVE', '&H000000FF'),
     ],
 
     'audio' => [

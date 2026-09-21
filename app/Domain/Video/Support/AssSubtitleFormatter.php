@@ -22,17 +22,46 @@ final class AssSubtitleFormatter
             ."{$alignment},{$style['margin_h']},{$style['margin_h']},{$style['margin_v']}\n\n"
             ."[Events]\nFormat: Layer, Start, End, Style, Text\n";
 
+        $positiveColour = $style['accent_colour_positive'] ?? null;
+        $negativeColour = $style['accent_colour_negative'] ?? null;
+
         $lines = array_map(
-            static fn (array $segment): string => sprintf(
-                'Dialogue: 0,%s,%s,Default,%s',
-                self::timestamp($segment['start']),
-                self::timestamp($segment['end']),
-                str_replace(["\r\n", "\n"], '\\N', $segment['text']),
-            ),
+            static function (array $segment) use ($positiveColour, $negativeColour): string {
+                $text = $positiveColour !== null && $negativeColour !== null
+                    ? self::highlightWords($segment['text'], $positiveColour, $negativeColour)
+                    : $segment['text'];
+
+                return sprintf(
+                    'Dialogue: 0,%s,%s,Default,%s',
+                    self::timestamp($segment['start']),
+                    self::timestamp($segment['end']),
+                    str_replace(["\r\n", "\n"], '\\N', $text),
+                );
+            },
             $segments,
         );
 
         return $header.implode("\n", $lines)."\n";
+    }
+
+    private static function highlightWords(string $text, string $positiveColour, string $negativeColour): string
+    {
+        $tokens = preg_split('/(\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
+
+        return implode('', array_map(
+            static function (string $token) use ($positiveColour, $negativeColour): string {
+                if (trim($token) === '') {
+                    return $token;
+                }
+
+                return match (CaptionHighlighter::classify($token)) {
+                    'positive' => "{\\c{$positiveColour}&}{$token}{\\c}",
+                    'negative' => "{\\c{$negativeColour}&}{$token}{\\c}",
+                    default => $token,
+                };
+            },
+            $tokens,
+        ));
     }
 
     private static function timestamp(float $seconds): string
