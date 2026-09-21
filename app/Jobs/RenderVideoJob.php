@@ -68,11 +68,17 @@ class RenderVideoJob implements ShouldBeUnique, ShouldQueue
                 'status' => VideoStatus::Rendered,
             ]);
         });
+
+        QualityCheckVideoJob::dispatch($video->id);
     }
 
     public function failed(Throwable $exception): void
     {
-        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+        Video::whereKey($this->videoId)->update([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'render',
+            'error_message' => $exception->getMessage(),
+        ]);
 
         $this->notifyPermanentFailure('video', 'Video rendering failed permanently.', [
             'video_id' => $this->videoId,

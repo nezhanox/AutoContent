@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Domain\Video\Providers\FakeVideoRenderer;
 use App\Domain\Video\RenderResult;
 use App\Domain\Video\VideoRendererInterface;
+use App\Jobs\QualityCheckVideoJob;
 use App\Jobs\RenderVideoJob;
 use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
@@ -17,11 +18,19 @@ use App\Models\Voiceover;
 use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class RenderVideoJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     private function bindFakeRenderer(?RenderResult $result = null): void
     {
@@ -65,6 +74,8 @@ class RenderVideoJobTest extends TestCase
         $this->assertSame(13, $fresh->duration);
         $this->assertSame(1080, $fresh->width);
         $this->assertSame(1920, $fresh->height);
+
+        Queue::assertPushed(QualityCheckVideoJob::class, fn (QualityCheckVideoJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_is_a_no_op_when_the_video_status_is_not_assets_ready(): void
@@ -134,6 +145,8 @@ class RenderVideoJobTest extends TestCase
         $job->failed(new \RuntimeException('ffmpeg crashed'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('render', $video->fresh()->failed_stage);
+        $this->assertSame('ffmpeg crashed', $video->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),
