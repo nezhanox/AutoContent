@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Domain\Video\Providers\FakeTranscriptionProvider;
 use App\Domain\Video\TranscriptionProviderInterface;
 use App\Jobs\GenerateSubtitlesJob;
+use App\Jobs\RenderVideoJob;
 use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
@@ -15,12 +16,20 @@ use App\Models\Voiceover;
 use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class GenerateSubtitlesJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     private function videoReadyForSubtitles(): Video
     {
@@ -69,6 +78,8 @@ class GenerateSubtitlesJobTest extends TestCase
         Storage::disk(config('filesystems.default'))->assertExists($expectedPath);
 
         $this->assertSame($subtitle->id, $video->fresh()->subtitle_id);
+
+        Queue::assertPushed(RenderVideoJob::class, fn (RenderVideoJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_is_a_no_op_when_the_video_status_is_not_assets_ready(): void
@@ -124,6 +135,8 @@ class GenerateSubtitlesJobTest extends TestCase
         $job->failed(new \RuntimeException('boom'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('subtitles', $video->fresh()->failed_stage);
+        $this->assertSame('boom', $video->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),

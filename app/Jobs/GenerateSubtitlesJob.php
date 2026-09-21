@@ -73,11 +73,17 @@ class GenerateSubtitlesJob implements ShouldBeUnique, ShouldQueue
 
             $video->update(['subtitle_id' => $subtitle->id]);
         });
+
+        RenderVideoJob::dispatch($video->id);
     }
 
     public function failed(Throwable $exception): void
     {
-        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+        Video::whereKey($this->videoId)->update([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'subtitles',
+            'error_message' => $exception->getMessage(),
+        ]);
 
         $this->notifyPermanentFailure('video', 'Subtitle generation failed permanently.', [
             'video_id' => $this->videoId,
