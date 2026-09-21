@@ -6,11 +6,15 @@ use App\Domain\Video\AssetProviderInterface;
 use App\Domain\Video\AssetSearchOptions;
 use App\Domain\Video\Providers\ChainedAssetProvider;
 use App\Models\Enums\MediaAssetType;
+use App\Models\MediaAsset;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AssetServiceProviderTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_asset_provider_interface_resolves_to_a_chained_provider(): void
     {
         $this->assertInstanceOf(ChainedAssetProvider::class, $this->app->make(AssetProviderInterface::class));
@@ -26,15 +30,19 @@ class AssetServiceProviderTest extends TestCase
             'api.pexels.com/*' => Http::response(['photos' => []], 200),
         ]);
 
+        $localAsset = MediaAsset::factory()->create([
+            'type' => MediaAssetType::Image,
+            'provider' => 'local',
+            'metadata' => ['tags' => ['stoic', 'statue']],
+        ]);
+
         $provider = $this->app->make(AssetProviderInterface::class);
 
-        $results = $provider->search('this query matches nothing', new AssetSearchOptions(
+        $results = $provider->search('stoic statue', new AssetSearchOptions(
             types: [MediaAssetType::Image],
         ));
 
-        $this->assertSame([], $results);
-        Http::assertSent(
-            fn ($request) => str_contains($request->url(), 'pixabay.com') || str_contains($request->url(), 'pexels.com')
-        );
+        $this->assertCount(1, $results);
+        $this->assertSame($localAsset->id, $results[0]->id);
     }
 }
