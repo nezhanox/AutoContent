@@ -17,7 +17,7 @@ class Video extends Model
         'content_project_id', 'content_idea_id', 'script_id', 'title', 'description',
         'status', 'duration', 'width', 'height', 'file_path', 'thumbnail_path',
         'subtitle_id', 'music_asset_id', 'quality_passed', 'quality_report',
-        'metadata', 'error_message',
+        'metadata', 'error_message', 'failed_stage',
     ];
 
     protected function casts(): array
@@ -28,6 +28,34 @@ class Video extends Model
             'quality_passed' => 'boolean',
             'quality_report' => 'array',
         ];
+    }
+
+    private const STAGE_LABELS = [
+        'scenes' => 'Scenes',
+        'voiceover' => 'Voiceover',
+        'assets' => 'Assets',
+        'subtitles' => 'Subtitles',
+        'render' => 'Render',
+        'quality_check' => 'Quality check',
+    ];
+
+    public function currentStageLabel(): string
+    {
+        if ($this->status === VideoStatus::Failed) {
+            $stage = self::STAGE_LABELS[$this->failed_stage] ?? $this->failed_stage ?? 'unknown';
+
+            return "Failed: {$stage}";
+        }
+
+        return match (true) {
+            $this->status === VideoStatus::ScriptGenerated => 'Generating voiceover',
+            $this->status === VideoStatus::VoiceGenerated => 'Collecting assets',
+            $this->status === VideoStatus::AssetsReady && $this->subtitle_id === null => 'Generating subtitles',
+            $this->status === VideoStatus::AssetsReady => 'Rendering',
+            $this->status === VideoStatus::Rendered && $this->quality_report === null => 'Checking quality',
+            $this->status === VideoStatus::Rendered => 'Done',
+            default => $this->status->value,
+        };
     }
 
     public function contentProject(): BelongsTo

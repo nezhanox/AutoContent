@@ -91,4 +91,36 @@ class VideoDomainModelsTest extends TestCase
         $this->assertTrue($fresh->quality_passed);
         $this->assertSame(['checks' => ['has_video_stream' => true]], $fresh->quality_report);
     }
+
+    public function test_current_stage_label_reflects_progress_through_the_pipeline(): void
+    {
+        $video = Video::factory()->create(['status' => VideoStatus::ScriptGenerated]);
+        $this->assertSame('Generating voiceover', $video->currentStageLabel());
+
+        $video->update(['status' => VideoStatus::VoiceGenerated]);
+        $this->assertSame('Collecting assets', $video->fresh()->currentStageLabel());
+
+        $video->update(['status' => VideoStatus::AssetsReady, 'subtitle_id' => null]);
+        $this->assertSame('Generating subtitles', $video->fresh()->currentStageLabel());
+
+        $subtitle = MediaAsset::factory()->create(['type' => MediaAssetType::Subtitle]);
+        $video->update(['subtitle_id' => $subtitle->id]);
+        $this->assertSame('Rendering', $video->fresh()->currentStageLabel());
+
+        $video->update(['status' => VideoStatus::Rendered, 'quality_report' => null]);
+        $this->assertSame('Checking quality', $video->fresh()->currentStageLabel());
+
+        $video->update(['quality_report' => ['checks' => []]]);
+        $this->assertSame('Done', $video->fresh()->currentStageLabel());
+    }
+
+    public function test_current_stage_label_on_failure_names_the_failed_stage(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'voiceover',
+        ]);
+
+        $this->assertSame('Failed: Voiceover', $video->currentStageLabel());
+    }
 }

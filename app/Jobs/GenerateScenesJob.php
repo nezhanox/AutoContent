@@ -56,7 +56,9 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
 
         $scenes = $service->generate($script, $target);
 
-        DB::transaction(function () use ($script, $idea, $scenes) {
+        $video = null;
+
+        DB::transaction(function () use ($script, $idea, $scenes, &$video) {
             $video = Video::firstOrCreate(
                 ['script_id' => $script->id],
                 [
@@ -81,6 +83,8 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
                 ]);
             }
         });
+
+        GenerateVoiceoverJob::dispatch($video->id);
     }
 
     public function failed(Throwable $exception): void
@@ -88,7 +92,11 @@ class GenerateScenesJob implements ShouldBeUnique, ShouldQueue
         $video = Video::where('script_id', $this->scriptId)->first();
 
         if ($video !== null) {
-            $video->update(['status' => VideoStatus::Failed]);
+            $video->update([
+                'status' => VideoStatus::Failed,
+                'failed_stage' => 'scenes',
+                'error_message' => $exception->getMessage(),
+            ]);
         }
 
         $this->notifyPermanentFailure('video', 'Scene generation failed permanently.', [

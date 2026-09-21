@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Domain\Video\Exceptions\SceneGenerationFailedException;
 use App\Jobs\GenerateScenesJob;
+use App\Jobs\GenerateVoiceoverJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Enums\ScriptStatus;
@@ -17,11 +18,19 @@ use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class GenerateScenesJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     private function scriptWithCompletedStatus(): Script
     {
@@ -71,6 +80,8 @@ class GenerateScenesJobTest extends TestCase
         $this->assertSame('hook', $scenes[0]->type->value);
         $this->assertSame(1, $scenes[1]->order);
         $this->assertSame('cta', $scenes[1]->type->value);
+
+        Queue::assertPushed(GenerateVoiceoverJob::class, fn (GenerateVoiceoverJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_is_a_no_op_when_the_script_is_not_completed(): void
@@ -201,5 +212,7 @@ class GenerateScenesJobTest extends TestCase
         $job->failed(new \RuntimeException('boom'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('scenes', $video->fresh()->failed_stage);
+        $this->assertSame('boom', $video->fresh()->error_message);
     }
 }
