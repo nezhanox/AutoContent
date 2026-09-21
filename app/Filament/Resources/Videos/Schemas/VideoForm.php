@@ -4,11 +4,15 @@ namespace App\Filament\Resources\Videos\Schemas;
 
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoStatus;
+use App\Models\Video;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class VideoForm
 {
@@ -61,6 +65,64 @@ class VideoForm
                     ->label('Quality Report')
                     ->disabled()
                     ->formatStateUsing(fn ($state) => $state ? json_encode($state) : null),
+                Textarea::make('script_preview')
+                    ->label('Script')
+                    ->dehydrated(false)
+                    ->disabled()
+                    ->columnSpanFull()
+                    ->afterStateHydrated(function (Textarea $component, ?Video $record): void {
+                        $component->state($record?->script?->content);
+                    }),
+                Textarea::make('scenes_preview')
+                    ->label('Scenes')
+                    ->dehydrated(false)
+                    ->disabled()
+                    ->columnSpanFull()
+                    ->afterStateHydrated(function (Textarea $component, ?Video $record): void {
+                        if ($record === null) {
+                            return;
+                        }
+
+                        $lines = $record->scenes->map(
+                            fn ($scene): string => "#{$scene->order} [{$scene->type->value}] {$scene->duration}s — {$scene->visual_query}"
+                        );
+
+                        $component->state($lines->implode("\n"));
+                    }),
+                Placeholder::make('voiceover_preview')
+                    ->label('Voiceover')
+                    ->content(function (?Video $record): HtmlString {
+                        if ($record?->voiceover?->file_path === null) {
+                            return new HtmlString('—');
+                        }
+
+                        $url = Storage::disk(config('filesystems.default'))->url($record->voiceover->file_path);
+
+                        return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Play voiceover</a>");
+                    }),
+                Textarea::make('subtitles_preview')
+                    ->label('Subtitles')
+                    ->dehydrated(false)
+                    ->disabled()
+                    ->columnSpanFull()
+                    ->afterStateHydrated(function (Textarea $component, ?Video $record): void {
+                        if ($record?->subtitle?->path === null) {
+                            return;
+                        }
+
+                        $component->state(Storage::disk(config('filesystems.default'))->get($record->subtitle->path));
+                    }),
+                Placeholder::make('render_preview')
+                    ->label('Final video')
+                    ->content(function (?Video $record): HtmlString {
+                        if ($record?->file_path === null) {
+                            return new HtmlString('—');
+                        }
+
+                        $url = Storage::disk(config('filesystems.default'))->url($record->file_path);
+
+                        return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Open rendered video</a>");
+                    }),
                 Textarea::make('error_message')
                     ->columnSpanFull(),
             ]);

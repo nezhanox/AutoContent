@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Videos;
 use App\Filament\Resources\Videos\Pages\CreateVideo;
 use App\Filament\Resources\Videos\Pages\EditVideo;
 use App\Filament\Resources\Videos\Pages\ListVideos;
+use App\Filament\Resources\Videos\Pages\ViewVideo;
 use App\Filament\Resources\Videos\Schemas\VideoForm;
 use App\Filament\Resources\Videos\Tables\VideosTable;
 use App\Models\Video;
@@ -46,6 +47,7 @@ class VideoResource extends Resource
             'index' => ListVideos::route('/'),
             'create' => CreateVideo::route('/create'),
             'edit' => EditVideo::route('/{record}/edit'),
+            'view' => ViewVideo::route('/{record}'),
         ];
     }
 }
