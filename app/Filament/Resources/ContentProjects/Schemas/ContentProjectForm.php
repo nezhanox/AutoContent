@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\ContentProjects\Schemas;
 
+use App\Models\Enums\SocialPlatform;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -31,10 +33,22 @@ class ContentProjectForm
                     ->required(),
                 TextInput::make('language')
                     ->required(),
-                TextInput::make('target_platforms')
-                    ->required()
-                    ->default('[]')
-                    ->disabled(),
+                Select::make('settings.tts.voice')
+                    ->label('Default voice (ElevenLabs)')
+                    ->options([
+                        'JBFqnCBsd6RMkjVDRZzb' => 'George — Warm, Captivating Storyteller',
+                        'EXAVITQu4vr4xnSDxMaL' => 'Sarah — Mature, Reassuring, Confident',
+                        'CwhRBWXzGAHq8TQ4Fs17' => 'Roger — Laid-Back, Casual, Resonant',
+                        'TX3LPaxmHKxFdv7VOQHJ' => 'Liam — Energetic, Social Media Creator',
+                        'Xb7hH8MSUJpSbSDYk0k2' => 'Alice — Clear, Engaging Educator',
+                    ]),
+                CheckboxList::make('target_platforms')
+                    ->label('Publish platforms')
+                    ->options(array_combine(
+                        array_map(fn (SocialPlatform $platform): string => $platform->value, SocialPlatform::cases()),
+                        array_map(fn (SocialPlatform $platform): string => $platform->name, SocialPlatform::cases()),
+                    ))
+                    ->required(),
                 TextInput::make('status')
                     ->required(),
                 ...static::aiSettingsFields(),
