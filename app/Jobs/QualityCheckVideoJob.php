@@ -63,7 +63,11 @@ class QualityCheckVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+        Video::whereKey($this->videoId)->update([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'quality_check',
+            'error_message' => $exception->getMessage(),
+        ]);
 
         $this->notifyPermanentFailure('video', 'Quality check failed permanently.', [
             'video_id' => $this->videoId,

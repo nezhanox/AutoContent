@@ -85,6 +85,8 @@ class QualityCheckVideoJobTest extends TestCase
         $job->failed(new \RuntimeException('boom'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('quality_check', $video->fresh()->failed_stage);
+        $this->assertSame('boom', $video->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),
