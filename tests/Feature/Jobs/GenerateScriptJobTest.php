@@ -3,6 +3,7 @@
 namespace Tests\Feature\Jobs;
 
 use App\Domain\Llm\Providers\FakeLlmProvider;
+use App\Jobs\GenerateScenesJob;
 use App\Jobs\GenerateScriptJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
@@ -13,11 +14,19 @@ use App\Models\User;
 use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class GenerateScriptJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     public function test_it_generates_a_completed_script_and_marks_the_idea_used(): void
     {
@@ -47,6 +56,8 @@ class GenerateScriptJobTest extends TestCase
         $this->assertSame('H', $script->hook);
         $this->assertSame(55, $script->estimated_duration);
         $this->assertSame('Follow', $script->metadata['cta']);
+
+        Queue::assertPushed(GenerateScenesJob::class, fn (GenerateScenesJob $job) => $job->scriptId === $script->id);
     }
 
     public function test_it_is_a_no_op_when_the_idea_is_not_approved(): void

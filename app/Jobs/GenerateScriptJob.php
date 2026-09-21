@@ -78,6 +78,8 @@ class GenerateScriptJob implements ShouldBeUnique, ShouldQueue
         ]);
 
         $idea->update(['status' => ContentIdeaStatus::Used]);
+
+        GenerateScenesJob::dispatch($script->id);
     }
 
     public function failed(Throwable $exception): void
