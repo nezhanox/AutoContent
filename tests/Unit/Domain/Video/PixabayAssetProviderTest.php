@@ -78,6 +78,61 @@ class PixabayAssetProviderTest extends TestCase
         $this->assertSame('assets/stock/pixabay/222.mp4', $results[0]->path);
     }
 
+    public function test_it_falls_back_to_photos_when_video_search_returns_no_hits_for_a_mixed_type_request(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'pixabay.com/api/videos/*' => Http::response(['hits' => []], 200),
+            'pixabay.com/api/*' => Http::response([
+                'hits' => [
+                    [
+                        'id' => 555,
+                        'largeImageURL' => 'https://cdn.pixabay.test/555.jpg',
+                        'imageWidth' => 1080,
+                        'imageHeight' => 1920,
+                    ],
+                ],
+            ], 200),
+            'cdn.pixabay.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = new PixabayAssetProvider;
+        $results = $provider->search('philosophy statue', new AssetSearchOptions(
+            types: [MediaAssetType::Video, MediaAssetType::Image],
+        ));
+
+        $this->assertCount(1, $results);
+        $this->assertSame(MediaAssetType::Image, $results[0]->type);
+        $this->assertSame('assets/stock/pixabay/555.jpg', $results[0]->path);
+    }
+
+    public function test_it_filters_out_landscape_video_hits(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'pixabay.com/api/videos/*' => Http::response([
+                'hits' => [
+                    [
+                        'id' => 666,
+                        'duration' => 12,
+                        'videos' => [
+                            'large' => ['url' => 'https://cdn.pixabay.test/666.mp4', 'width' => 1920, 'height' => 1080],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $provider = new PixabayAssetProvider;
+        $results = $provider->search('marble statue', new AssetSearchOptions(types: [MediaAssetType::Video]));
+
+        $this->assertSame([], $results);
+    }
+
     public function test_it_returns_an_empty_array_when_the_search_request_fails(): void
     {
         $this->configure();

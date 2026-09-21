@@ -82,6 +82,36 @@ class PexelsAssetProviderTest extends TestCase
         $this->assertSame('assets/stock/pexels/444.mp4', $results[0]->path);
     }
 
+    public function test_it_falls_back_to_photos_when_video_search_returns_no_hits_for_a_mixed_type_request(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'api.pexels.com/videos/search*' => Http::response(['videos' => []], 200),
+            'api.pexels.com/v1/search*' => Http::response([
+                'photos' => [
+                    [
+                        'id' => 777,
+                        'width' => 1080,
+                        'height' => 1920,
+                        'src' => ['original' => 'https://cdn.pexels.test/777.jpg'],
+                    ],
+                ],
+            ], 200),
+            'cdn.pexels.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = new PexelsAssetProvider;
+        $results = $provider->search('stoic statue', new AssetSearchOptions(
+            types: [MediaAssetType::Video, MediaAssetType::Image],
+        ));
+
+        $this->assertCount(1, $results);
+        $this->assertSame(MediaAssetType::Image, $results[0]->type);
+        $this->assertSame('assets/stock/pexels/777.jpg', $results[0]->path);
+    }
+
     public function test_it_returns_an_empty_array_when_the_search_request_fails(): void
     {
         $this->configure();

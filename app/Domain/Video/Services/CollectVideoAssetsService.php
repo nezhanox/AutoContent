@@ -35,13 +35,13 @@ final class CollectVideoAssetsService
 
             $results = $this->assetProvider->search(
                 $scene->visual_query,
-                new AssetSearchOptions(types: $types, excludeAssetIds: $usedAssetIds)
+                new AssetSearchOptions(types: $types, maxResults: 1, excludeAssetIds: $usedAssetIds)
             );
 
             if ($results === [] && $usedAssetIds !== []) {
                 $results = $this->assetProvider->search(
                     $scene->visual_query,
-                    new AssetSearchOptions(types: $types)
+                    new AssetSearchOptions(types: $types, maxResults: 1)
                 );
             }
 

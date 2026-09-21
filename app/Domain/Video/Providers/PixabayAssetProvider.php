@@ -33,9 +33,22 @@ final class PixabayAssetProvider implements AssetProviderInterface
             return [];
         }
 
-        $hits = $wantsVideo
-            ? $this->searchVideos($query, $options->maxResults)
-            : $this->searchPhotos($query, $options->maxResults);
+        $hits = [];
+        $hitType = null;
+
+        if ($wantsVideo) {
+            $hits = $this->searchVideos($query, $options->maxResults);
+            $hitType = MediaAssetType::Video;
+        }
+
+        if ($hits === [] && $wantsImage) {
+            $hits = $this->searchPhotos($query, $options->maxResults);
+            $hitType = MediaAssetType::Image;
+        }
+
+        if ($hits === []) {
+            return [];
+        }
 
         $assets = [];
 
@@ -45,7 +58,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
                 externalId: (string) $hit['id'],
                 downloadUrl: $hit['url'],
                 extension: $hit['extension'],
-                type: $wantsVideo ? MediaAssetType::Video : MediaAssetType::Image,
+                type: $hitType,
                 width: $hit['width'],
                 height: $hit['height'],
                 duration: $hit['duration'] ?? null,
@@ -84,13 +97,21 @@ final class PixabayAssetProvider implements AssetProviderInterface
         }
 
         return collect($response['hits'] ?? [])
-            ->map(fn (array $hit): array => [
-                'id' => $hit['id'],
-                'url' => $hit['largeImageURL'],
-                'extension' => 'jpg',
-                'width' => $hit['imageWidth'] ?? 0,
-                'height' => $hit['imageHeight'] ?? 0,
-            ])
+            ->map(function (array $hit): ?array {
+                if (blank($hit['largeImageURL'] ?? null)) {
+                    return null;
+                }
+
+                return [
+                    'id' => $hit['id'],
+                    'url' => $hit['largeImageURL'],
+                    'extension' => 'jpg',
+                    'width' => $hit['imageWidth'] ?? 0,
+                    'height' => $hit['imageHeight'] ?? 0,
+                ];
+            })
+            ->filter()
+            ->values()
             ->all();
     }
 
@@ -117,12 +138,23 @@ final class PixabayAssetProvider implements AssetProviderInterface
                     return null;
                 }
 
+                $width = $file['width'] ?? 0;
+                $height = $file['height'] ?? 0;
+
+                // Pixabay's video search has no `orientation` parameter (unlike its
+                // photo search and unlike Pexels), so we filter out landscape hits
+                // client-side to avoid letterboxing them into a tiny strip on the
+                // 1080x1920 portrait canvas.
+                if ($width >= $height) {
+                    return null;
+                }
+
                 return [
                     'id' => $hit['id'],
                     'url' => $file['url'],
                     'extension' => 'mp4',
-                    'width' => $file['width'] ?? 0,
-                    'height' => $file['height'] ?? 0,
+                    'width' => $width,
+                    'height' => $height,
                     'duration' => isset($hit['duration']) ? (int) $hit['duration'] : null,
                 ];
             })
@@ -137,18 +169,24 @@ final class PixabayAssetProvider implements AssetProviderInterface
      */
     private function request(string $path, array $query): ?array
     {
+        $apiKey = config('assets.providers.pixabay.api_key');
+
+        if (blank($apiKey)) {
+            return null;
+        }
+
         try {
             $response = Http::baseUrl(config('assets.providers.pixabay.base_url'))
                 ->timeout(15)
-                ->get($path, [...$query, 'key' => config('assets.providers.pixabay.api_key')]);
+                ->get($path, [...$query, 'key' => $apiKey]);
         } catch (Throwable $exception) {
-            Log::warning('pixabay search request failed', ['error' => $exception->getMessage()]);
+            Log::channel('video')->warning('pixabay search request failed', ['error' => $exception->getMessage()]);
 
             return null;
         }
 
         if ($response->failed()) {
-            Log::warning('pixabay search request failed', ['status' => $response->status()]);
+            Log::channel('video')->warning('pixabay search request failed', ['status' => $response->status()]);
 
             return null;
         }

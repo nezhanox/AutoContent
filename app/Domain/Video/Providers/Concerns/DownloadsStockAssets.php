@@ -33,7 +33,7 @@ trait DownloadsStockAssets
         try {
             $response = Http::timeout(30)->get($downloadUrl);
         } catch (Throwable $exception) {
-            Log::warning('stock asset download failed', [
+            Log::channel('video')->warning('stock asset download failed', [
                 'provider' => $provider,
                 'url' => $downloadUrl,
                 'error' => $exception->getMessage(),
@@ -43,7 +43,7 @@ trait DownloadsStockAssets
         }
 
         if ($response->failed()) {
-            Log::warning('stock asset download failed', [
+            Log::channel('video')->warning('stock asset download failed', [
                 'provider' => $provider,
                 'url' => $downloadUrl,
                 'status' => $response->status(),
@@ -64,9 +64,20 @@ trait DownloadsStockAssets
                 'width' => $width,
                 'height' => $height,
                 'duration' => $duration,
-                'metadata' => ['source' => $provider, 'query' => $query, 'external_id' => $externalId],
+                'metadata' => ['source' => $provider, 'query' => $query, 'external_id' => $externalId, 'tags' => $this->tagsFor($query)],
                 'hash' => hash('sha256', $bytes),
             ],
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function tagsFor(string $query): array
+    {
+        return array_values(array_filter(array_unique(array_map(
+            static fn (string $word): string => mb_strtolower($word),
+            preg_split('/[^\p{L}\p{N}]+/u', trim($query)) ?: []
+        ))));
     }
 }

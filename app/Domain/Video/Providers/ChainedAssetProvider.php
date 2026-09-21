@@ -4,6 +4,7 @@ namespace App\Domain\Video\Providers;
 
 use App\Domain\Video\AssetProviderInterface;
 use App\Domain\Video\AssetSearchOptions;
+use App\Models\MediaAsset;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -15,7 +16,7 @@ final class ChainedAssetProvider implements AssetProviderInterface
     public function __construct(private readonly array $providers) {}
 
     /**
-     * @return array<int, \App\Models\MediaAsset>
+     * @return array<int, MediaAsset>
      */
     public function search(string $query, AssetSearchOptions $options): array
     {
@@ -23,7 +24,7 @@ final class ChainedAssetProvider implements AssetProviderInterface
             try {
                 $results = $provider->search($query, $options);
             } catch (Throwable $exception) {
-                Log::warning('asset provider threw during search', [
+                Log::channel('video')->warning('asset provider threw during search', [
                     'provider' => $provider::class,
                     'error' => $exception->getMessage(),
                 ]);

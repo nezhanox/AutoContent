@@ -529,8 +529,9 @@ final class PixabayAssetProvider implements AssetProviderInterface
      */
     public function search(string $query, AssetSearchOptions $options): array
     {
-        $wantsVideo = array_intersect($options->types, [MediaAssetType::Video, MediaAssetType::ScreenRecording]) !== [];
-        $wantsImage = array_intersect($options->types, [MediaAssetType::Image, MediaAssetType::Thumbnail]) !== [];
+        $typeValues = array_map(fn (MediaAssetType $type): string => $type->value, $options->types);
+        $wantsVideo = array_intersect($typeValues, [MediaAssetType::Video->value, MediaAssetType::ScreenRecording->value]) !== [];
+        $wantsImage = array_intersect($typeValues, [MediaAssetType::Image->value, MediaAssetType::Thumbnail->value]) !== [];
 
         if (! $wantsVideo && ! $wantsImage) {
             return [];
@@ -861,8 +862,9 @@ final class PexelsAssetProvider implements AssetProviderInterface
      */
     public function search(string $query, AssetSearchOptions $options): array
     {
-        $wantsVideo = array_intersect($options->types, [MediaAssetType::Video, MediaAssetType::ScreenRecording]) !== [];
-        $wantsImage = array_intersect($options->types, [MediaAssetType::Image, MediaAssetType::Thumbnail]) !== [];
+        $typeValues = array_map(fn (MediaAssetType $type): string => $type->value, $options->types);
+        $wantsVideo = array_intersect($typeValues, [MediaAssetType::Video->value, MediaAssetType::ScreenRecording->value]) !== [];
+        $wantsImage = array_intersect($typeValues, [MediaAssetType::Image->value, MediaAssetType::Thumbnail->value]) !== [];
 
         if (! $wantsVideo && ! $wantsImage) {
             return [];
@@ -1039,18 +1041,26 @@ class AssetServiceProviderTest extends TestCase
         $this->assertInstanceOf(ChainedAssetProvider::class, $this->app->make(AssetProviderInterface::class));
     }
 
-    public function test_the_chain_falls_back_to_local_results_when_stock_providers_are_unconfigured(): void
+    public function test_the_chain_falls_back_to_local_results_when_stock_providers_return_nothing(): void
     {
-        // No PIXABAY_API_KEY/PEXELS_API_KEY in the test environment, so both
-        // remote providers' searches fail closed (empty array) and the chain
-        // must still resolve — proving `local` is always last in the chain.
+        // No PIXABAY_API_KEY/PEXELS_API_KEY in the test environment. Fake
+        // both remote endpoints to return zero hits so the chain falls
+        // through to `local` without ever making a real network call.
+        \Illuminate\Support\Facades\Http::fake([
+            'pixabay.com/api/*' => \Illuminate\Support\Facades\Http::response(['hits' => []], 200),
+            'api.pexels.com/*' => \Illuminate\Support\Facades\Http::response(['photos' => []], 200),
+        ]);
+
         $provider = $this->app->make(AssetProviderInterface::class);
 
         $results = $provider->search('this query matches nothing', new \App\Domain\Video\AssetSearchOptions(
             types: [\App\Models\Enums\MediaAssetType::Image],
         ));
 
-        $this->assertIsArray($results);
+        $this->assertSame([], $results);
+        \Illuminate\Support\Facades\Http::assertSent(
+            fn ($request) => str_contains($request->url(), 'pixabay.com') || str_contains($request->url(), 'pexels.com')
+        );
     }
 }
 ```

@@ -28,9 +28,22 @@ final class PexelsAssetProvider implements AssetProviderInterface
             return [];
         }
 
-        $hits = $wantsVideo
-            ? $this->searchVideos($query, $options->maxResults)
-            : $this->searchPhotos($query, $options->maxResults);
+        $hits = [];
+        $hitType = null;
+
+        if ($wantsVideo) {
+            $hits = $this->searchVideos($query, $options->maxResults);
+            $hitType = MediaAssetType::Video;
+        }
+
+        if ($hits === [] && $wantsImage) {
+            $hits = $this->searchPhotos($query, $options->maxResults);
+            $hitType = MediaAssetType::Image;
+        }
+
+        if ($hits === []) {
+            return [];
+        }
 
         $assets = [];
 
@@ -40,7 +53,7 @@ final class PexelsAssetProvider implements AssetProviderInterface
                 externalId: (string) $hit['id'],
                 downloadUrl: $hit['url'],
                 extension: $hit['extension'],
-                type: $wantsVideo ? MediaAssetType::Video : MediaAssetType::Image,
+                type: $hitType,
                 width: $hit['width'],
                 height: $hit['height'],
                 duration: $hit['duration'] ?? null,
@@ -77,13 +90,21 @@ final class PexelsAssetProvider implements AssetProviderInterface
         }
 
         return collect($response['photos'] ?? [])
-            ->map(fn (array $photo): array => [
-                'id' => $photo['id'],
-                'url' => $photo['src']['original'],
-                'extension' => 'jpg',
-                'width' => $photo['width'] ?? 0,
-                'height' => $photo['height'] ?? 0,
-            ])
+            ->map(function (array $photo): ?array {
+                if (blank($photo['src']['original'] ?? null)) {
+                    return null;
+                }
+
+                return [
+                    'id' => $photo['id'],
+                    'url' => $photo['src']['original'],
+                    'extension' => 'jpg',
+                    'width' => $photo['width'] ?? 0,
+                    'height' => $photo['height'] ?? 0,
+                ];
+            })
+            ->filter()
+            ->values()
             ->all();
     }
 
@@ -133,19 +154,25 @@ final class PexelsAssetProvider implements AssetProviderInterface
      */
     private function request(string $path, array $query): ?array
     {
+        $apiKey = config('assets.providers.pexels.api_key');
+
+        if (blank($apiKey)) {
+            return null;
+        }
+
         try {
             $response = Http::baseUrl(config('assets.providers.pexels.base_url'))
-                ->withHeaders(['Authorization' => config('assets.providers.pexels.api_key')])
+                ->withHeaders(['Authorization' => $apiKey])
                 ->timeout(15)
                 ->get($path, $query);
         } catch (Throwable $exception) {
-            Log::warning('pexels search request failed', ['error' => $exception->getMessage()]);
+            Log::channel('video')->warning('pexels search request failed', ['error' => $exception->getMessage()]);
 
             return null;
         }
 
         if ($response->failed()) {
-            Log::warning('pexels search request failed', ['status' => $response->status()]);
+            Log::channel('video')->warning('pexels search request failed', ['status' => $response->status()]);
 
             return null;
         }

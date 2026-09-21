@@ -8,6 +8,7 @@ use App\Domain\Video\Providers\LocalAssetProvider;
 use App\Domain\Video\Providers\PexelsAssetProvider;
 use App\Domain\Video\Providers\PixabayAssetProvider;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AssetServiceProvider extends ServiceProvider
 {
@@ -21,7 +22,13 @@ class AssetServiceProvider extends ServiceProvider
             ];
 
             $providers = array_map(
-                fn (string $name) => $drivers[$name](),
+                function (string $name) use ($drivers) {
+                    if (! array_key_exists($name, $drivers)) {
+                        throw new InvalidArgumentException("Unknown asset provider [{$name}] in config('assets.chain').");
+                    }
+
+                    return $drivers[$name]();
+                },
                 config('assets.chain', ['local']),
             );
 
