@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Videos\Tables;
 
 use App\Jobs\CollectVideoAssetsJob;
+use App\Jobs\GenerateScenesJob;
 use App\Jobs\GenerateSubtitlesJob;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Jobs\QualityCheckVideoJob;
@@ -34,6 +35,15 @@ class VideosTable
                 TextColumn::make('status')
                     ->badge()
                     ->searchable(),
+                TextColumn::make('stage')
+                    ->label('Stage')
+                    ->state(fn (Video $record): string => $record->currentStageLabel())
+                    ->badge()
+                    ->color(fn (Video $record): string => match (true) {
+                        $record->status === VideoStatus::Failed => 'danger',
+                        $record->status === VideoStatus::Rendered && $record->quality_report !== null => 'success',
+                        default => 'warning',
+                    }),
                 TextColumn::make('duration')
                     ->numeric()
                     ->sortable(),
@@ -107,6 +117,38 @@ class VideosTable
                         QualityCheckVideoJob::dispatch($record->id);
 
                         Notification::make()->title('Quality check queued')->success()->send();
+                    }),
+                Action::make('retry')
+                    ->label('Retry')
+                    ->color('warning')
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::Failed)
+                    ->requiresConfirmation()
+                    ->action(function (Video $record): void {
+                        $stage = $record->failed_stage;
+
+                        $record->update([
+                            'status' => match ($stage) {
+                                'scenes', 'voiceover' => VideoStatus::ScriptGenerated,
+                                'assets' => VideoStatus::VoiceGenerated,
+                                'subtitles', 'render' => VideoStatus::AssetsReady,
+                                'quality_check' => VideoStatus::Rendered,
+                                default => $record->status,
+                            },
+                            'failed_stage' => null,
+                            'error_message' => null,
+                        ]);
+
+                        match ($stage) {
+                            'scenes' => GenerateScenesJob::dispatch($record->script_id),
+                            'voiceover' => GenerateVoiceoverJob::dispatch($record->id),
+                            'assets' => CollectVideoAssetsJob::dispatch($record->id),
+                            'subtitles' => GenerateSubtitlesJob::dispatch($record->id),
+                            'render' => RenderVideoJob::dispatch($record->id),
+                            'quality_check' => QualityCheckVideoJob::dispatch($record->id),
+                            default => null,
+                        };
+
+                        Notification::make()->title('Retry queued')->success()->send();
                     }),
                 EditAction::make(),
             ])
