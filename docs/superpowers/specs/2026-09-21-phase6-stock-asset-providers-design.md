@@ -116,12 +116,14 @@ Pexels (`https://api.pexels.com/v1/search` — фото, `https://api.pexels.com
 ### Мапінг `AssetSearchOptions->types` на ендпоінт
 
 ```php
-$wantsImage = array_intersect($options->types, [MediaAssetType::Image, MediaAssetType::Screenshot]) !== [];
+$wantsImage = array_intersect($options->types, [MediaAssetType::Image, MediaAssetType::Thumbnail]) !== [];
 $wantsVideo = array_intersect($options->types, [MediaAssetType::Video, MediaAssetType::ScreenRecording]) !== [];
 ```
 
-`ScreenRecording`/`Thumbnail`/`Subtitle`/`Audio` не мають сенсу для
-stock-пошуку — і Pixabay-, і Pexels-провайдер повертають `[]` одразу, не
+`ScreenRecording` мапиться на відео-пошук (той самий ендпоінт, що й звичайне
+`Video` — стоку байдуже, це скріншот-рекординг чи b-roll), а `Thumbnail` — на
+фото-пошук поряд зі звичайним `Image`. Лише `Subtitle`/`Audio` не мають сенсу
+для stock-пошуку — і Pixabay-, і Pexels-провайдер повертають `[]` одразу, не
 роблячи запиту, якщо жоден з `types` не мапиться на фото чи відео (ланцюжок
 одразу йде до `LocalAssetProvider`, як і зараз для цих типів).
 
