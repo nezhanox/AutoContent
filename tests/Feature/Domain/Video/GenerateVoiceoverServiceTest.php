@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Domain\Video;
 
+use App\Domain\Video\Providers\FakeAudioProbe;
 use App\Domain\Video\Providers\FakeTtsProvider;
 use App\Domain\Video\Services\GenerateVoiceoverService;
 use App\Models\ContentProject;
@@ -24,7 +25,8 @@ class GenerateVoiceoverServiceTest extends TestCase
         VideoScene::factory()->create(['video_id' => $video->id, 'order' => 0, 'text' => 'first']);
 
         $tts = (new FakeTtsProvider)->respondWith('audio-bytes', 'fake', ['duration_hint' => 5]);
-        $service = new GenerateVoiceoverService($tts);
+        $audioProbe = (new FakeAudioProbe)->respondWith(7.5);
+        $service = new GenerateVoiceoverService($tts, $audioProbe);
 
         $result = $service->generate($video->fresh(['scenes'])->load('contentProject'));
 
@@ -32,6 +34,7 @@ class GenerateVoiceoverServiceTest extends TestCase
         $this->assertSame('audio-bytes', $result['audio']);
         $this->assertSame('fake', $result['provider']);
         $this->assertSame('rachel', $result['voice']);
+        $this->assertSame(7.5, $result['duration']);
         $this->assertSame(['duration_hint' => 5], $result['metadata']);
     }
 
@@ -44,7 +47,7 @@ class GenerateVoiceoverServiceTest extends TestCase
         VideoScene::factory()->create(['video_id' => $video->id, 'order' => 0, 'text' => 'hi']);
 
         $tts = (new FakeTtsProvider)->respondWith('audio-bytes');
-        $service = new GenerateVoiceoverService($tts);
+        $service = new GenerateVoiceoverService($tts, new FakeAudioProbe);
 
         $result = $service->generate($video->fresh(['scenes'])->load('contentProject'));
 
@@ -60,7 +63,7 @@ class GenerateVoiceoverServiceTest extends TestCase
         VideoScene::factory()->create(['video_id' => $video->id, 'order' => 0, 'text' => 'hi']);
 
         $tts = (new FakeTtsProvider)->respondWith('audio-bytes');
-        $service = new GenerateVoiceoverService($tts);
+        $service = new GenerateVoiceoverService($tts, new FakeAudioProbe);
 
         $result = $service->generate($video->fresh(['scenes'])->load('contentProject'));
 
@@ -75,7 +78,7 @@ class GenerateVoiceoverServiceTest extends TestCase
         $video = Video::factory()->create(['content_project_id' => $project->id]);
         VideoScene::factory()->create(['video_id' => $video->id, 'order' => 0, 'text' => 'hi']);
 
-        $service = new GenerateVoiceoverService(new FakeTtsProvider);
+        $service = new GenerateVoiceoverService(new FakeTtsProvider, new FakeAudioProbe);
 
         $this->expectException(InvalidArgumentException::class);
 

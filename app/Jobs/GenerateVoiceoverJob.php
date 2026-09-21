@@ -7,6 +7,7 @@ use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\VideoStatus;
 use App\Models\Enums\VoiceoverStatus;
 use App\Models\Video;
+use App\Models\VideoScene;
 use App\Models\Voiceover;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -62,12 +63,46 @@ class GenerateVoiceoverJob implements ShouldBeUnique, ShouldQueue
                 'voice' => $result['voice'],
                 'text' => $result['text'],
                 'file_path' => $path,
+                'duration' => (int) round($result['duration']),
                 'metadata' => $result['metadata'],
                 'status' => VoiceoverStatus::Completed,
             ]);
 
+            $this->rescaleSceneDurations($video, $result['duration']);
+
             $video->update(['status' => VideoStatus::VoiceGenerated]);
         });
+    }
+
+    /**
+     * Scene durations come from the script-writing LLM's guess at narration
+     * pacing, which can drift far from the TTS engine's actual speaking rate.
+     * FfmpegVideoRenderer trims the final render to the sum of scene durations,
+     * so without this rescale the end of the narration gets silently cut off.
+     */
+    private function rescaleSceneDurations(Video $video, float $actualDuration): void
+    {
+        $scenes = $video->scenes->sortBy('order')->values();
+        $originalTotal = $scenes->sum('duration');
+
+        if ($originalTotal <= 0 || $scenes->isEmpty()) {
+            return;
+        }
+
+        $scaleFactor = $actualDuration / $originalTotal;
+        $assigned = 0;
+        $lastIndex = $scenes->count() - 1;
+
+        foreach ($scenes as $index => $scene) {
+            if ($index === $lastIndex) {
+                $newDuration = max(1, (int) round($actualDuration) - $assigned);
+            } else {
+                $newDuration = max(1, (int) round($scene->duration * $scaleFactor));
+                $assigned += $newDuration;
+            }
+
+            VideoScene::whereKey($scene->id)->update(['duration' => $newDuration]);
+        }
     }
 
     public function failed(Throwable $exception): void

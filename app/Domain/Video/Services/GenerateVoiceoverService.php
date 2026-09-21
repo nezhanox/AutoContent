@@ -2,6 +2,7 @@
 
 namespace App\Domain\Video\Services;
 
+use App\Domain\Video\AudioProbeInterface;
 use App\Domain\Video\TtsProviderInterface;
 use App\Domain\Video\VoiceSettings;
 use App\Models\Video;
@@ -9,10 +10,13 @@ use InvalidArgumentException;
 
 final class GenerateVoiceoverService
 {
-    public function __construct(private readonly TtsProviderInterface $ttsProvider) {}
+    public function __construct(
+        private readonly TtsProviderInterface $ttsProvider,
+        private readonly AudioProbeInterface $audioProbe,
+    ) {}
 
     /**
-     * @return array{text: string, audio: string, provider: string, voice: string, metadata: array<string, mixed>}
+     * @return array{text: string, audio: string, provider: string, voice: string, duration: float, metadata: array<string, mixed>}
      */
     public function generate(Video $video): array
     {
@@ -25,6 +29,7 @@ final class GenerateVoiceoverService
             'audio' => $result->audioContent,
             'provider' => $result->provider,
             'voice' => $result->voice,
+            'duration' => $this->audioProbe->duration($result->audioContent),
             'metadata' => $result->metadata,
         ];
     }

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Domain\Video\AudioProbeInterface;
+use App\Domain\Video\Providers\FakeAudioProbe;
 use App\Domain\Video\Providers\FakeTtsProvider;
 use App\Domain\Video\TtsProviderInterface;
 use App\Domain\Video\VoiceResult;
@@ -43,8 +45,20 @@ class GenerateVoiceoverJobTest extends TestCase
         return $video;
     }
 
+    private function bindFakeAudioProbe(float $duration): void
+    {
+        $this->app->bind(AudioProbeInterface::class, function () use ($duration) {
+            return (new FakeAudioProbe)->respondWith($duration);
+        });
+    }
+
     private function bindFakeTts(string $audio = 'audio-bytes'): void
     {
+        // Real audio-duration probing shells out to ffprobe, which can't parse
+        // this fake, non-audio content, so every fake-TTS test needs a fake
+        // probe too (bindFakeAudioProbe() can override the fixed duration after).
+        $this->bindFakeAudioProbe(10.0);
+
         $this->app->bind(TtsProviderInterface::class, function () use ($audio) {
             return (new FakeTtsProvider)->respondWith($audio, 'elevenlabs', ['model_id' => 'eleven_multilingual_v2']);
         });
@@ -70,6 +84,32 @@ class GenerateVoiceoverJobTest extends TestCase
         $this->assertSame('audio-bytes', Storage::disk('local')->get($voiceover->file_path));
 
         $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
+    }
+
+    public function test_it_rescales_scene_durations_to_match_the_actual_voiceover_duration(): void
+    {
+        // Regression test: scene durations are the script-writing LLM's guess at
+        // pacing, which can drift far from the TTS engine's actual speaking rate.
+        // FfmpegVideoRenderer trims the final render to the sum of scene durations,
+        // so without this rescale the end of the narration gets silently cut off.
+        Storage::fake('local');
+        $this->bindFakeTts();
+        $this->bindFakeAudioProbe(12.0);
+
+        $video = $this->videoWithScenesReadyForVoiceover();
+        $scenes = VideoScene::where('video_id', $video->id)->orderBy('order')->get();
+        $scenes[0]->update(['duration' => 2]);
+        $scenes[1]->update(['duration' => 2]);
+
+        app()->call([new GenerateVoiceoverJob($video->id), 'handle']);
+
+        $voiceover = Voiceover::where('video_id', $video->id)->sole();
+        $this->assertSame(12, $voiceover->duration);
+
+        $rescaled = VideoScene::where('video_id', $video->id)->orderBy('order')->get();
+        $this->assertSame(6, $rescaled[0]->duration);
+        $this->assertSame(6, $rescaled[1]->duration);
+        $this->assertSame(12, $rescaled->sum('duration'));
     }
 
     public function test_it_creates_no_voiceover_and_does_not_change_video_status_when_the_tts_call_fails(): void
