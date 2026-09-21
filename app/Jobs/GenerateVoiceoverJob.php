@@ -72,6 +72,8 @@ class GenerateVoiceoverJob implements ShouldBeUnique, ShouldQueue
 
             $video->update(['status' => VideoStatus::VoiceGenerated]);
         });
+
+        CollectVideoAssetsJob::dispatch($video->id);
     }
 
     /**
@@ -107,7 +109,11 @@ class GenerateVoiceoverJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+        Video::whereKey($this->videoId)->update([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'voiceover',
+            'error_message' => $exception->getMessage(),
+        ]);
 
         $this->notifyPermanentFailure('video', 'Voiceover generation failed permanently.', [
             'video_id' => $this->videoId,

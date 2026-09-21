@@ -8,6 +8,7 @@ use App\Domain\Video\Providers\FakeTtsProvider;
 use App\Domain\Video\TtsProviderInterface;
 use App\Domain\Video\VoiceResult;
 use App\Domain\Video\VoiceSettings;
+use App\Jobs\CollectVideoAssetsJob;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
@@ -21,12 +22,20 @@ use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class GenerateVoiceoverJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     private function videoWithScenesReadyForVoiceover(): Video
     {
@@ -84,6 +93,8 @@ class GenerateVoiceoverJobTest extends TestCase
         $this->assertSame('audio-bytes', Storage::disk('local')->get($voiceover->file_path));
 
         $this->assertSame(VideoStatus::VoiceGenerated, $video->fresh()->status);
+
+        Queue::assertPushed(CollectVideoAssetsJob::class, fn (CollectVideoAssetsJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_rescales_scene_durations_to_match_the_actual_voiceover_duration(): void
@@ -110,6 +121,8 @@ class GenerateVoiceoverJobTest extends TestCase
         $this->assertSame(6, $rescaled[0]->duration);
         $this->assertSame(6, $rescaled[1]->duration);
         $this->assertSame(12, $rescaled->sum('duration'));
+
+        Queue::assertPushed(CollectVideoAssetsJob::class, fn (CollectVideoAssetsJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_creates_no_voiceover_and_does_not_change_video_status_when_the_tts_call_fails(): void
@@ -199,6 +212,8 @@ class GenerateVoiceoverJobTest extends TestCase
         $job->failed(new \RuntimeException('boom'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('voiceover', $video->fresh()->failed_stage);
+        $this->assertSame('boom', $video->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),
