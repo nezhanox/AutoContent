@@ -57,11 +57,17 @@ class CollectVideoAssetsJob implements ShouldBeUnique, ShouldQueue
 
             $video->update(['status' => VideoStatus::AssetsReady]);
         });
+
+        GenerateSubtitlesJob::dispatch($video->id);
     }
 
     public function failed(Throwable $exception): void
     {
-        Video::whereKey($this->videoId)->update(['status' => VideoStatus::Failed]);
+        Video::whereKey($this->videoId)->update([
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'assets',
+            'error_message' => $exception->getMessage(),
+        ]);
 
         $this->notifyPermanentFailure('video', 'Asset collection failed permanently.', [
             'video_id' => $this->videoId,

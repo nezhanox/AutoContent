@@ -6,6 +6,7 @@ use App\Domain\Video\AssetProviderInterface;
 use App\Domain\Video\Exceptions\AssetNotFoundException;
 use App\Domain\Video\Providers\FakeAssetProvider;
 use App\Jobs\CollectVideoAssetsJob;
+use App\Jobs\GenerateSubtitlesJob;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
@@ -16,11 +17,19 @@ use App\Models\VideoScene;
 use App\Notifications\PipelineJobFailedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class CollectVideoAssetsJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     private function bindFakeAssets(array $pool): void
     {
@@ -42,6 +51,7 @@ class CollectVideoAssetsJobTest extends TestCase
 
         $this->assertSame($match->id, $scene->fresh()->asset_id);
         $this->assertSame(VideoStatus::AssetsReady, $video->fresh()->status);
+        Queue::assertPushed(GenerateSubtitlesJob::class, fn (GenerateSubtitlesJob $job) => $job->videoId === $video->id);
     }
 
     public function test_it_is_a_no_op_when_the_video_status_is_not_voice_generated(): void
@@ -125,6 +135,8 @@ class CollectVideoAssetsJobTest extends TestCase
         $job->failed(new \RuntimeException('boom'));
 
         $this->assertSame(VideoStatus::Failed, $video->fresh()->status);
+        $this->assertSame('assets', $video->fresh()->failed_stage);
+        $this->assertSame('boom', $video->fresh()->error_message);
 
         Notification::assertSentTo(
             User::all(),
