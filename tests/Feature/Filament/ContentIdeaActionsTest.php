@@ -8,6 +8,8 @@ use App\Jobs\GenerateScriptJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Enums\ContentIdeaStatus;
+use App\Models\Enums\ScriptStatus;
+use App\Models\Script;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -95,5 +97,16 @@ class ContentIdeaActionsTest extends TestCase
 
         Livewire::test(ListContentIdeas::class)
             ->assertTableActionHidden('generateScript', $idea);
+    }
+
+    public function test_the_ideas_table_shows_the_related_scripts_status(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $idea = ContentIdea::factory()->create(['status' => ContentIdeaStatus::Approved]);
+        Script::factory()->create(['content_idea_id' => $idea->id, 'status' => ScriptStatus::Failed]);
+
+        Livewire::test(ListContentIdeas::class)
+            ->assertTableColumnStateSet('script_status', 'failed', record: $idea);
     }
 }

@@ -35,6 +35,11 @@ class ContentIdeasTable
                 TextColumn::make('status')
                     ->badge()
                     ->searchable(),
+                TextColumn::make('script_status')
+                    ->label('Script Status')
+                    ->badge()
+                    ->state(fn (ContentIdea $record): ?string => $record->scripts()->latest()->value('status')?->value)
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
