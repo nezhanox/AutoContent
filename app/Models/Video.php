@@ -52,7 +52,9 @@ class Video extends Model
             $this->status === VideoStatus::VoiceGenerated => 'Collecting assets',
             $this->status === VideoStatus::AssetsReady && $this->subtitle_id === null => 'Generating subtitles',
             $this->status === VideoStatus::AssetsReady => 'Rendering',
+            $this->status === VideoStatus::Rendering => 'Rendering (retry if stalled)',
             $this->status === VideoStatus::Rendered && $this->quality_report === null => 'Checking quality',
+            $this->status === VideoStatus::Rendered && $this->quality_passed === false => 'Quality check failed',
             $this->status === VideoStatus::Rendered => 'Done',
             default => $this->status->value,
         };

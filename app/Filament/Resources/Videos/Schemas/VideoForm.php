@@ -96,7 +96,8 @@ class VideoForm
                             return new HtmlString('—');
                         }
 
-                        $url = Storage::disk(config('filesystems.default'))->url($record->voiceover->file_path);
+                        $url = Storage::disk(config('filesystems.default'))
+                            ->temporaryUrl($record->voiceover->file_path, now()->addMinutes(30));
 
                         return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Play voiceover</a>");
                     }),
@@ -119,7 +120,8 @@ class VideoForm
                             return new HtmlString('—');
                         }
 
-                        $url = Storage::disk(config('filesystems.default'))->url($record->file_path);
+                        $url = Storage::disk(config('filesystems.default'))
+                            ->temporaryUrl($record->file_path, now()->addMinutes(30));
 
                         return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Open rendered video</a>");
                     }),

@@ -110,8 +110,32 @@ class VideoDomainModelsTest extends TestCase
         $video->update(['status' => VideoStatus::Rendered, 'quality_report' => null]);
         $this->assertSame('Checking quality', $video->fresh()->currentStageLabel());
 
-        $video->update(['quality_report' => ['checks' => []]]);
+        $video->update(['quality_report' => ['checks' => []], 'quality_passed' => true]);
         $this->assertSame('Done', $video->fresh()->currentStageLabel());
+    }
+
+    public function test_current_stage_label_reports_a_failed_quality_check_instead_of_done(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Rendered,
+            'quality_passed' => false,
+            'quality_report' => ['checks' => ['has_audio_stream' => false]],
+        ]);
+
+        $this->assertSame('Quality check failed', $video->currentStageLabel());
+
+        $video->update(['quality_passed' => true]);
+        $this->assertSame('Done', $video->fresh()->currentStageLabel());
+    }
+
+    public function test_current_stage_label_explains_a_video_stuck_in_rendering(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Rendering,
+            'failed_stage' => null,
+        ]);
+
+        $this->assertSame('Rendering (retry if stalled)', $video->currentStageLabel());
     }
 
     public function test_current_stage_label_on_failure_names_the_failed_stage(): void

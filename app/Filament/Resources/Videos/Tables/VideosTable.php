@@ -42,6 +42,7 @@ class VideosTable
                     ->badge()
                     ->color(fn (Video $record): string => match (true) {
                         $record->status === VideoStatus::Failed => 'danger',
+                        $record->status === VideoStatus::Rendered && $record->quality_passed === false => 'danger',
                         $record->status === VideoStatus::Rendered && $record->quality_report !== null => 'success',
                         default => 'warning',
                     }),
@@ -122,10 +123,21 @@ class VideosTable
                 Action::make('retry')
                     ->label('Retry')
                     ->color('warning')
-                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::Failed)
+                    ->visible(fn (Video $record): bool => $record->status === VideoStatus::Failed
+                        || $record->status === VideoStatus::Rendering)
                     ->requiresConfirmation()
                     ->action(function (Video $record): void {
-                        $stage = $record->failed_stage;
+                        // A video stranded in "rendering" never ran the job's failed() hook, so it has
+                        // no failed_stage recorded. Treat it exactly like a failed render stage.
+                        $stage = $record->status === VideoStatus::Rendering
+                            ? 'render'
+                            : $record->failed_stage;
+
+                        if ($stage === null) {
+                            Notification::make()->title('Cannot retry — no failed stage recorded')->warning()->send();
+
+                            return;
+                        }
 
                         $record->update([
                             'status' => match ($stage) {

@@ -64,6 +64,7 @@ class VideoViewPageTest extends TestCase
     public function test_the_view_page_links_to_the_voiceover_and_the_rendered_video(): void
     {
         $this->actingAs(User::factory()->create());
+        $this->freezeTime();
 
         $video = Video::factory()->create(['file_path' => 'videos/final.mp4']);
         Voiceover::factory()->create([
@@ -72,10 +73,53 @@ class VideoViewPageTest extends TestCase
         ]);
 
         $disk = Storage::disk(config('filesystems.default'));
+        $voiceoverUrl = $disk->temporaryUrl('voiceovers/voice.mp3', now()->addMinutes(30));
+        $renderUrl = $disk->temporaryUrl('videos/final.mp4', now()->addMinutes(30));
 
-        Livewire::test(ViewVideo::class, ['record' => $video->getRouteKey()])
+        // The default disk is private, so a plain url() would not be servable — the links
+        // must be signed temporary URLs.
+        $this->assertStringContainsString('signature=', $voiceoverUrl);
+        $this->assertStringContainsString('signature=', $renderUrl);
+        $this->assertNotSame($disk->url('voiceovers/voice.mp3'), $voiceoverUrl);
+        $this->assertNotSame($disk->url('videos/final.mp4'), $renderUrl);
+
+        $html = Livewire::test(ViewVideo::class, ['record' => $video->getRouteKey()])
             ->assertSuccessful()
-            ->assertSeeHtml('<a href="'.$disk->url('voiceovers/voice.mp3').'" target="_blank" rel="noopener">Play voiceover</a>')
-            ->assertSeeHtml('<a href="'.$disk->url('videos/final.mp4').'" target="_blank" rel="noopener">Open rendered video</a>');
+            ->html();
+
+        $this->assertStringContainsString(
+            '<a href="'.$voiceoverUrl.'" target="_blank" rel="noopener">Play voiceover</a>',
+            $html,
+        );
+        $this->assertStringContainsString(
+            '<a href="'.$renderUrl.'" target="_blank" rel="noopener">Open rendered video</a>',
+            $html,
+        );
+    }
+
+    public function test_a_rendered_preview_link_actually_serves_the_file(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $disk = Storage::disk(config('filesystems.default'));
+        $disk->put('videos/roundtrip.mp4', 'fake-video-bytes');
+
+        try {
+            $video = Video::factory()->create(['file_path' => 'videos/roundtrip.mp4']);
+
+            $html = Livewire::test(ViewVideo::class, ['record' => $video->getRouteKey()])
+                ->assertSuccessful()
+                ->html();
+
+            $this->assertSame(
+                1,
+                preg_match('#<a href="([^"]+)" target="_blank" rel="noopener">Open rendered video</a>#', $html, $matches),
+                'Expected a "Open rendered video" link in the rendered view page.',
+            );
+
+            $this->get(html_entity_decode($matches[1]))->assertOk();
+        } finally {
+            $disk->delete('videos/roundtrip.mp4');
+        }
     }
 }
