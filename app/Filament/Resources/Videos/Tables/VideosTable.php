@@ -40,12 +40,7 @@ class VideosTable
                     ->label('Stage')
                     ->state(fn (Video $record): string => $record->currentStageLabel())
                     ->badge()
-                    ->color(fn (Video $record): string => match (true) {
-                        $record->status === VideoStatus::Failed => 'danger',
-                        $record->status === VideoStatus::Rendered && $record->quality_passed === false => 'danger',
-                        $record->status === VideoStatus::Rendered && $record->quality_report !== null => 'success',
-                        default => 'warning',
-                    }),
+                    ->color(fn (Video $record): string => $record->stageBadgeColor()),
                 TextColumn::make('duration')
                     ->numeric()
                     ->sortable(),

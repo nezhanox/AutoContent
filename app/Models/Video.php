@@ -60,6 +60,16 @@ class Video extends Model
         };
     }
 
+    public function stageBadgeColor(): string
+    {
+        return match (true) {
+            $this->status === VideoStatus::Failed => 'danger',
+            $this->status === VideoStatus::Rendered && $this->quality_passed === false => 'danger',
+            $this->status === VideoStatus::Rendered && $this->quality_report !== null => 'success',
+            default => 'warning',
+        };
+    }
+
     public function contentProject(): BelongsTo
     {
         return $this->belongsTo(ContentProject::class);
