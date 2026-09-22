@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Console\AuthController;
+use App\Http\Controllers\Console\DashboardController;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Support\Facades\Route;
 
@@ -9,6 +10,7 @@ Route::middleware(HandleInertiaRequests::class)->prefix('console')->group(functi
     Route::post('login', [AuthController::class, 'store']);
 
     Route::middleware('auth')->group(function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('console.dashboard');
         Route::post('logout', [AuthController::class, 'destroy'])->name('console.logout');
     });
 });
