@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a working v1 of a self-built admin ("Console") on Inertia.js v2 + React + TypeScript, running alongside the existing Filament admin, covering Login, Dashboard, Videos list with Retry, and the "Generate Video" flow.
+**Goal:** Ship a working v1 of a self-built admin ("Console") on Inertia.js + React + TypeScript, running alongside the existing Filament admin, covering Login, Dashboard, Videos list with Retry, and the "Generate Video" flow.
 
 **Architecture:** Server-driven Inertia (no new REST/API layer) — `App\Http\Controllers\Console\*` controllers call the same domain services/jobs Filament already uses and render `Inertia::render()` responses; React pages consume typed props. UI components are hand-authored shadcn-style primitives (cva + Tailwind), not the shadcn CLI/npm package, to keep the dependency surface small and fully in-repo.
 
-**Tech Stack:** Laravel 12 / PHP 8.4 (existing), `inertiajs/inertia-laravel` (new), React 18 + TypeScript, existing Vite 7 + `laravel-vite-plugin` + Tailwind v4, `@vitejs/plugin-react`, `class-variance-authority` + `clsx` + `tailwind-merge`.
+**Tech Stack:** Laravel 12 / PHP 8.4 (existing), `inertiajs/inertia-laravel` (new), React + TypeScript, existing Vite 7 + `laravel-vite-plugin` + Tailwind v4, `@vitejs/plugin-react`, `class-variance-authority` + `clsx` + `tailwind-merge`.
+
+> **Post-implementation note (2026-09-22):** this plan was written against Inertia.js v2 / React 18. `composer require`/`npm install` with no version pins (as the tasks specify) resolved the then-current majors at implementation time: `inertiajs/inertia-laravel` v3, `@inertiajs/react` v3, React 19, TypeScript 7. Everything in this plan works unmodified against those versions — no code had to change for the version bump — but SSR defaults to enabled in `inertiajs/inertia-laravel` v3's published config, which the final whole-branch review caught and fixed (`config/inertia.php`'s `INERTIA_SSR_ENABLED` default flipped to `false`, since this project has no SSR bundle). If you're implementing a future phase against this Console and pin exact versions, pin what's actually in `composer.lock`/`package-lock.json`, not "v2"/"React 18" from this doc.
 
 **Spec:** `docs/superpowers/specs/2026-09-22-phase7-console-admin-design.md`
 

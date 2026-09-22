@@ -645,16 +645,32 @@ Plan: `docs/superpowers/plans/2026-09-18-phase5-analytics.md`
       `docs/architecture.md` (доменна модель, pipeline jobs, provider-чейни,
       Mermaid-діаграми) + `docs/testing.md`. Bounded-задача, без spec/plan.
 
-### Phase 7 — Самописна адмінка (Inertia + React)
+### Phase 7 — Самописна адмінка (Inertia + React) ✅ v1 завершено (2026-09-22)
 
 Мета: замінити Filament на власну реактивну адмінку на Inertia.js + React,
 щоб мати повний контроль над UX (зараз користувача "капец як не влаштовує"
 поточна Filament-адмінка) і мати фундамент для Phase 8 (сторінка
 документації/діаграм) і Phase 9 (запуск генерації нових "проєктів" з UI).
 
-Обсяг першої ітерації визначається окремим brainstorming (design системи,
-auth-підхід, які Filament-ресурси переносяться першими, чи живе Filament
-паралельно під час міграції чи ріжеться одразу). Починаю з цього пункту.
+v1 доставлено через subagent-driven-development (4 задачі + фінальний
+рев'ю гілки з одним fix-раундом): Console login/logout, Dashboard (stats +
+best videos + top topics, портовано з трьох Filament-віджетів), Videos-лист
+зі Stage-беджами, потік "Generate Video", дія Retry для завислих/провалених
+стадій. Filament (`/admin`) лишається робочим без змін, окрім однієї
+санкціонованої DRY-заміни (`Video::stageBadgeColor()`).
+
+Ручна перевірка (реальний `php artisan serve` + справжні HTTP-запити,
+ізольована throwaway-БД, без торкання живої черги користувача): login
+(правильні/неправильні креденшели), Dashboard і Videos з реальними даними,
+Retry — реальна зміна статусу в БД і диспатч job'а, Generate Video —
+error-path підтверджено наживо (happy path покритий автотестами,
+300/300 проходять).
+
+Обсяг: інші 9 Filament-ресурсів, сторінка "View" відео, ролі/дозволи,
+cutover `/admin` — свідомо поза v1, наступні ітерації.
+
+Spec: `docs/superpowers/specs/2026-09-22-phase7-console-admin-design.md`
+Plan: `docs/superpowers/plans/2026-09-22-phase7-console-admin.md`
 
 ### Phase 8 — Сторінка архітектури/залежностей в адмінці
 

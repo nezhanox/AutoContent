@@ -2,9 +2,11 @@
 
 Laravel 12 / PHP 8.4 застосунок, що генерує faceless короткі відео (ідея →
 сценарій → сцени → озвучка → b-roll → субтитри → рендер → перевірка якості)
-і публікує їх у TikTok/YouTube Shorts/Instagram Reels/X. Адмінка зараз —
-Filament 4 (`/admin`), планується заміна на самописну Inertia+React (див.
-`docs/superpowers/specs/`, якщо на момент читання спека вже існує).
+і публікує їх у TikTok/YouTube Shorts/Instagram Reels/X. Адмінка: Filament 4
+(`/admin`, всі 10 ресурсів) + нова самописна Inertia+React консоль
+(`/console`, v1: Login, Dashboard, Videos-лист, Generate Video, Retry —
+див. `docs/superpowers/specs/2026-09-22-phase7-console-admin-design.md`).
+Обидві живуть паралельно, поки Console не наздожене паритет.
 
 Деталі, які не варто тримати тут (щоб файл лишався коротким):
 
@@ -21,7 +23,12 @@ docker compose up -d --build
 ```
 
 Застосунок: http://localhost:8080, health: http://localhost:8080/up,
-адмінка: http://localhost:8080/admin (сідер: `admin@autocontent.test` / `password`).
+Filament-адмінка: http://localhost:8080/admin, нова консоль:
+http://localhost:8080/console/login (сідер: `admin@autocontent.test` /
+`password`, спільний для обох адмінок). Консоль вимагає зібраних
+фронтенд-асетів (`npm run build`, бо `resources/views/console.blade.php`
+не має dev-фолбеку) — `composer setup` це вже робить, для ручного запуску
+після pull — `npm install && npm run build`.
 
 Черга **обов'язково** перезапускати після зміни коду job'ів/сервісів —
 Laravel worker не перезавантажує PHP-класи на льоту:
