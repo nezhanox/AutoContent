@@ -8,6 +8,7 @@ use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Domain\Llm\ResolvedLlmTarget;
 use App\Domain\Video\Exceptions\SceneGenerationFailedException;
 use App\Domain\Video\Services\GenerateScenesService;
+use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Script;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +17,27 @@ use Tests\TestCase;
 class GenerateScenesServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_it_tells_the_llm_the_project_niche_and_to_prefer_classical_art_queries_for_historical_topics(): void
+    {
+        $project = ContentProject::factory()->create(['niche' => 'stoicism']);
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+        $script = Script::factory()->create(['content_idea_id' => $idea->id]);
+        $target = new ResolvedLlmTarget(new FakeLlmProvider, 'fake', 'fake-model');
+
+        $manager = $this->capturingLlmManager([
+            '{"scenes":[{"type":"hook","duration":3,"visual_query":"marble statue of a stoic philosopher","text":"Hi"}]}',
+        ]);
+
+        $service = new GenerateScenesService($manager);
+        $service->generate($script, $target);
+
+        $system = $manager->capturedMessages[0]['content'];
+
+        $this->assertStringContainsString('stoicism', $system);
+        $this->assertStringContainsString('classical art', $system);
+        $this->assertStringContainsString('marble statue', $system);
+    }
 
     public function test_it_returns_the_parsed_scenes_on_a_valid_first_response(): void
     {
@@ -135,6 +157,43 @@ class GenerateScenesServiceTest extends TestCase
         $this->expectException(SceneGenerationFailedException::class);
 
         $service->generate($script, $target);
+    }
+
+    /**
+     * @param  array<int, string>  $responses
+     */
+    private function capturingLlmManager(array $responses): LlmManagerInterface
+    {
+        return new class($responses) implements LlmManagerInterface
+        {
+            private int $index = 0;
+
+            /** @var array<int, array{role: string, content: string}> */
+            public array $capturedMessages = [];
+
+            /** @param array<int, string> $responses */
+            public function __construct(private array $responses) {}
+
+            public function resolve(?ContentProject $project, string $purpose, ?string $providerOverride = null, ?string $modelOverride = null): ResolvedLlmTarget
+            {
+                throw new \LogicException('Not used in this test.');
+            }
+
+            public function complete(?ContentProject $project, string $purpose, array $messages, ?array $responseSchema = null, ?string $providerOverride = null, ?string $modelOverride = null, float $temperature = 0.7, ?int $maxTokens = null): LlmResponse
+            {
+                $this->capturedMessages = $messages;
+                $content = $this->responses[$this->index] ?? end($this->responses);
+                $this->index++;
+
+                return new LlmResponse(
+                    content: $content,
+                    provider: 'fake',
+                    model: 'fake-model',
+                    promptTokens: 10,
+                    completionTokens: 5,
+                );
+            }
+        };
     }
 
     /**

@@ -99,7 +99,9 @@ class VideoForm
                         $url = Storage::disk(config('filesystems.default'))
                             ->temporaryUrl($record->voiceover->file_path, now()->addMinutes(30));
 
-                        return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Play voiceover</a>");
+                        return new HtmlString(
+                            "<audio controls preload=\"metadata\" style=\"width: 100%; max-width: 480px;\" src=\"{$url}\"></audio>"
+                        );
                     }),
                 Textarea::make('subtitles_preview')
                     ->label('Subtitles')
@@ -123,7 +125,10 @@ class VideoForm
                         $url = Storage::disk(config('filesystems.default'))
                             ->temporaryUrl($record->file_path, now()->addMinutes(30));
 
-                        return new HtmlString("<a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Open rendered video</a>");
+                        return new HtmlString(
+                            "<video controls preload=\"metadata\" style=\"width: 100%; max-width: 320px;\" src=\"{$url}\"></video>"
+                            ."<div><a href=\"{$url}\" target=\"_blank\" rel=\"noopener\">Open in new tab</a></div>"
+                        );
                     }),
                 Textarea::make('error_message')
                     ->columnSpanFull(),

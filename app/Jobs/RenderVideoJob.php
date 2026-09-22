@@ -47,8 +47,17 @@ class RenderVideoJob implements ShouldBeUnique, ShouldQueue
     {
         $video = Video::with(['scenes.asset', 'voiceover', 'subtitle', 'musicAsset'])->findOrFail($this->videoId);
 
+        // CollectVideoAssetsService only ever leaves asset_id null for a scene
+        // whose visual_query was blank (it skips those on purpose — see its
+        // collect() loop) — any other null asset_id at this point would mean
+        // asset collection is still incomplete, which AssetsReady already
+        // rules out. So "no visual_query" is the one legitimate reason for a
+        // scene to reach rendering without an asset (rendered as a solid
+        // background instead), regardless of the scene's declared type.
         $scenesReady = $video->scenes->isNotEmpty()
-            && $video->scenes->every(fn (VideoScene $scene): bool => $scene->asset_id !== null);
+            && $video->scenes->every(
+                fn (VideoScene $scene): bool => $scene->asset_id !== null || blank($scene->visual_query)
+            );
 
         if ($video->status !== VideoStatus::AssetsReady || $video->subtitle_id === null
             || $video->voiceover === null || ! $scenesReady) {

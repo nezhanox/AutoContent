@@ -9,6 +9,7 @@ use App\Models\Enums\MediaAssetType;
 use App\Models\MediaAsset;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AssetServiceProviderTest extends TestCase
@@ -23,9 +24,10 @@ class AssetServiceProviderTest extends TestCase
     public function test_the_chain_falls_back_to_local_results_when_stock_providers_return_nothing(): void
     {
         // No PIXABAY_API_KEY/PEXELS_API_KEY in the test environment. Fake
-        // both remote endpoints to return zero hits so the chain falls
+        // all three remote endpoints to return zero hits so the chain falls
         // through to `local` without ever making a real network call.
         Http::fake([
+            'commons.wikimedia.org/*' => Http::response(['query' => ['pages' => []]], 200),
             'pixabay.com/api/*' => Http::response(['hits' => []], 200),
             'api.pexels.com/*' => Http::response(['photos' => []], 200),
         ]);
@@ -44,5 +46,42 @@ class AssetServiceProviderTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertSame($localAsset->id, $results[0]->id);
+    }
+
+    public function test_wikimedia_is_tried_before_the_commercial_stock_providers(): void
+    {
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'commons.wikimedia.org/*' => Http::response([
+                'query' => [
+                    'pages' => [
+                        '111' => [
+                            'pageid' => 111,
+                            'title' => 'File:Marble statue of a Stoic philosopher.jpg',
+                            'imageinfo' => [[
+                                'url' => 'https://upload.wikimedia.test/original/111.jpg',
+                                'mime' => 'image/jpeg',
+                                'thumburl' => 'https://upload.wikimedia.test/thumb/111.jpg',
+                                'thumbwidth' => 1600,
+                                'thumbheight' => 2133,
+                            ]],
+                        ],
+                    ],
+                ],
+            ], 200),
+            'upload.wikimedia.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = $this->app->make(AssetProviderInterface::class);
+
+        $results = $provider->search('marble statue stoic philosopher', new AssetSearchOptions(
+            types: [MediaAssetType::Image],
+        ));
+
+        $this->assertCount(1, $results);
+        $this->assertSame('wikimedia', $results[0]->provider);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'pixabay.com')
+            || str_contains($request->url(), 'api.pexels.com'));
     }
 }

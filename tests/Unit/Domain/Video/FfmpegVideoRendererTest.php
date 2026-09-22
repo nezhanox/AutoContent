@@ -5,6 +5,7 @@ namespace Tests\Unit\Domain\Video;
 use App\Domain\Video\Providers\FfmpegVideoRenderer;
 use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
+use App\Models\Enums\VideoSceneType;
 use App\Models\MediaAsset;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -185,6 +186,31 @@ class FfmpegVideoRendererTest extends TestCase
             $joined = implode(' ', $process->command);
 
             return str_contains($joined, 'music.mp3') && str_contains($joined, 'amix');
+        });
+    }
+
+    public function test_it_renders_a_text_scene_with_no_asset_as_a_solid_colour_background(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        $this->fakeFfmpegProcesses();
+
+        $video = $this->buildVideo();
+        $video->scenes()->create([
+            'order' => 2,
+            'type' => VideoSceneType::Text,
+            'duration' => 2,
+            'text' => 'A caption-only card',
+            'asset_id' => null,
+        ]);
+
+        (new FfmpegVideoRenderer)->render($video->fresh(['scenes.asset', 'voiceover', 'subtitle', 'musicAsset']));
+
+        Process::assertRan(function ($process) {
+            $command = $process->command;
+
+            return in_array('-f', $command, true)
+                && in_array('lavfi', $command, true)
+                && in_array('color=c=0x262629:s=1080x1920:r=30', $command, true);
         });
     }
 

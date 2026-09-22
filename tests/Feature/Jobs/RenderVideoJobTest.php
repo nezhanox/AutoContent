@@ -9,6 +9,7 @@ use App\Jobs\QualityCheckVideoJob;
 use App\Jobs\RenderVideoJob;
 use App\Models\ContentProject;
 use App\Models\Enums\MediaAssetType;
+use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
 use App\Models\User;
@@ -104,17 +105,59 @@ class RenderVideoJobTest extends TestCase
         $this->assertNull($video->fresh()->file_path);
     }
 
-    public function test_it_is_a_no_op_when_a_scene_has_no_asset(): void
+    public function test_it_is_a_no_op_when_a_scene_with_a_visual_query_has_no_asset(): void
     {
         $this->bindFakeRenderer();
 
         $video = $this->videoReadyForRendering();
-        VideoScene::factory()->create(['video_id' => $video->id, 'asset_id' => null]);
+        VideoScene::factory()->create([
+            'video_id' => $video->id,
+            'visual_query' => 'a scene that still needs an asset',
+            'asset_id' => null,
+        ]);
 
         app()->call([new RenderVideoJob($video->id), 'handle']);
 
         $this->assertSame(VideoStatus::AssetsReady, $video->fresh()->status);
         $this->assertNull($video->fresh()->file_path);
+    }
+
+    public function test_it_renders_when_a_text_scene_has_a_blank_visual_query_and_no_asset(): void
+    {
+        $this->bindFakeRenderer(new RenderResult(path: 'projects/1/renders/1.mp4', duration: 12.5, width: 1080, height: 1920));
+
+        $video = $this->videoReadyForRendering();
+        VideoScene::factory()->create([
+            'video_id' => $video->id,
+            'type' => VideoSceneType::Text,
+            'visual_query' => null,
+            'asset_id' => null,
+        ]);
+
+        app()->call([new RenderVideoJob($video->id), 'handle']);
+
+        $this->assertSame(VideoStatus::Rendered, $video->fresh()->status);
+    }
+
+    public function test_it_renders_when_a_non_text_scene_has_a_blank_visual_query_and_no_asset(): void
+    {
+        // The LLM sometimes leaves visual_query blank on a `hook` (or other
+        // non-text) scene too — CollectVideoAssetsService skips assigning an
+        // asset there the same way it does for `text` scenes, so rendering
+        // must treat this the same regardless of the scene's declared type.
+        $this->bindFakeRenderer(new RenderResult(path: 'projects/1/renders/1.mp4', duration: 12.5, width: 1080, height: 1920));
+
+        $video = $this->videoReadyForRendering();
+        VideoScene::factory()->create([
+            'video_id' => $video->id,
+            'type' => VideoSceneType::Hook,
+            'visual_query' => null,
+            'asset_id' => null,
+        ]);
+
+        app()->call([new RenderVideoJob($video->id), 'handle']);
+
+        $this->assertSame(VideoStatus::Rendered, $video->fresh()->status);
     }
 
     public function test_it_is_a_no_op_when_there_is_no_voiceover(): void

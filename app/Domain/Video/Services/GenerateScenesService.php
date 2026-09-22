@@ -5,6 +5,7 @@ namespace App\Domain\Video\Services;
 use App\Domain\Llm\LlmManagerInterface;
 use App\Domain\Llm\ResolvedLlmTarget;
 use App\Domain\Video\Exceptions\SceneGenerationFailedException;
+use App\Models\ContentProject;
 use App\Models\Enums\VideoSceneType;
 use App\Models\Script;
 use InvalidArgumentException;
@@ -22,7 +23,7 @@ final class GenerateScenesService
     public function generate(Script $script, ResolvedLlmTarget $target): array
     {
         $project = $script->contentIdea->contentProject;
-        $messages = $this->buildMessages($script);
+        $messages = $this->buildMessages($script, $project);
         $lastError = 'unknown validation error';
 
         for ($attempt = 0; $attempt <= self::MAX_REPAIR_ATTEMPTS; $attempt++) {
@@ -53,12 +54,20 @@ final class GenerateScenesService
     /**
      * @return array<int, array{role: string, content: string}>
      */
-    private function buildMessages(Script $script): array
+    private function buildMessages(Script $script, ?ContentProject $project): array
     {
-        $system = 'You are a video editor breaking a script into an ordered list of scenes for a short '
-            .'vertical video. Each scene has a type, an approximate duration in seconds, an optional '
+        $system = sprintf(
+            'You are a video editor breaking a script into an ordered list of scenes for a short '
+            .'vertical video. Niche: %s. Each scene has a type, an approximate duration in seconds, an optional '
             .'visual search query describing what should be shown on screen, and the portion of narration '
-            .'text spoken during it. Respond only with JSON matching the given schema — no prose outside the JSON.';
+            .'text spoken during it. For visual_query: write a concrete, literal search phrase a stock-photo/art '
+            .'search engine can match — not an abstract metaphor. When the niche or a scene is historical, '
+            .'philosophical, mythological, or about a historical figure, prefer phrases describing classical art '
+            .'depicting it (e.g. "marble statue of a stoic philosopher", "renaissance painting of the death of '
+            .'Seneca") over modern stock-photo concepts, since a museum art archive is searched before generic '
+            .'stock photos. Respond only with JSON matching the given schema — no prose outside the JSON.',
+            $project?->niche ?? 'general',
+        );
 
         $user = sprintf(
             "Break this script into scenes.\nTitle: %s\nScript:\n%s",

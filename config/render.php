@@ -17,14 +17,30 @@ return [
 
     'fps' => (int) env('RENDER_FPS', 30),
 
+    // Backdrop for `text`-type scenes (pure caption cards with no background
+    // media) — any ffmpeg lavfi `color` source name or hex. Deliberately not
+    // pure black: FfprobeVideoQualityChecker's blackdetect (pixel_black_th
+    // 0.10, i.e. channel value <= ~25) fails a render with >=1s of true black,
+    // so a text-only scene of any normal duration would always fail quality
+    // review. 0x262629 (channel value 38-41) reads as near-black on screen
+    // while staying safely above that threshold.
+    'text_scene_background' => env('RENDER_TEXT_SCENE_BACKGROUND', '0x262629'),
+
     'subtitles' => [
         'font' => env('RENDER_SUBTITLE_FONT', 'DejaVu Sans'),
         'font_size' => (int) env('RENDER_SUBTITLE_FONT_SIZE', 64),
-        'position' => env('RENDER_SUBTITLE_POSITION', 'bottom'),
+        // 'middle' keeps captions clear of the top/bottom edges, where a
+        // scene's own photo content (faces, horizon lines) most often sits.
+        'position' => env('RENDER_SUBTITLE_POSITION', 'middle'),
         'margin_v' => (int) env('RENDER_SUBTITLE_MARGIN_V', 120),
         'margin_h' => (int) env('RENDER_SUBTITLE_MARGIN_H', 60),
         'primary_colour' => env('RENDER_SUBTITLE_COLOR', '&H00FFFFFF'),
         'outline_colour' => env('RENDER_SUBTITLE_OUTLINE_COLOR', '&H00000000'),
+        // Explicit outline/shadow width so a light word (e.g. the yellow/red
+        // accent colours below) stays readable over a light photo background
+        // regardless of the renderer's own default border thickness.
+        'outline_width' => (float) env('RENDER_SUBTITLE_OUTLINE_WIDTH', 3.5),
+        'shadow_width' => (float) env('RENDER_SUBTITLE_SHADOW_WIDTH', 1.5),
         // Per-word colour overrides applied by CaptionHighlighter based on the
         // word's stem (e.g. "сил-" => positive/yellow, "слаб-" => negative/red).
         'accent_colour_positive' => env('RENDER_SUBTITLE_ACCENT_POSITIVE', '&H0000FFFF'),

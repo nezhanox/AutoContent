@@ -7,6 +7,7 @@ use App\Domain\Video\Providers\ChainedAssetProvider;
 use App\Domain\Video\Providers\LocalAssetProvider;
 use App\Domain\Video\Providers\PexelsAssetProvider;
 use App\Domain\Video\Providers\PixabayAssetProvider;
+use App\Domain\Video\Providers\WikimediaAssetProvider;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 
@@ -16,6 +17,7 @@ class AssetServiceProvider extends ServiceProvider
     {
         $this->app->bind(AssetProviderInterface::class, function (): ChainedAssetProvider {
             $drivers = [
+                'wikimedia' => fn (): WikimediaAssetProvider => new WikimediaAssetProvider,
                 'pixabay' => fn (): PixabayAssetProvider => new PixabayAssetProvider,
                 'pexels' => fn (): PexelsAssetProvider => new PexelsAssetProvider,
                 'local' => fn (): LocalAssetProvider => new LocalAssetProvider,

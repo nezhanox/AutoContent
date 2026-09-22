@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ContentProjects\Schemas;
 
+use App\Domain\Video\Services\ListElevenLabsVoicesService;
 use App\Models\Enums\SocialPlatform;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
@@ -35,13 +36,8 @@ class ContentProjectForm
                     ->required(),
                 Select::make('settings.tts.voice')
                     ->label('Default voice (ElevenLabs)')
-                    ->options([
-                        'JBFqnCBsd6RMkjVDRZzb' => 'George — Warm, Captivating Storyteller',
-                        'EXAVITQu4vr4xnSDxMaL' => 'Sarah — Mature, Reassuring, Confident',
-                        'CwhRBWXzGAHq8TQ4Fs17' => 'Roger — Laid-Back, Casual, Resonant',
-                        'TX3LPaxmHKxFdv7VOQHJ' => 'Liam — Energetic, Social Media Creator',
-                        'Xb7hH8MSUJpSbSDYk0k2' => 'Alice — Clear, Engaging Educator',
-                    ]),
+                    ->options(fn (): array => app(ListElevenLabsVoicesService::class)->options())
+                    ->searchable(),
                 CheckboxList::make('target_platforms')
                     ->label('Publish platforms')
                     ->options(array_combine(

@@ -88,11 +88,15 @@ class VideoViewPageTest extends TestCase
             ->html();
 
         $this->assertStringContainsString(
-            '<a href="'.$voiceoverUrl.'" target="_blank" rel="noopener">Play voiceover</a>',
+            '<audio controls preload="metadata" style="width: 100%; max-width: 480px;" src="'.$voiceoverUrl.'"></audio>',
             $html,
         );
         $this->assertStringContainsString(
-            '<a href="'.$renderUrl.'" target="_blank" rel="noopener">Open rendered video</a>',
+            '<video controls preload="metadata" style="width: 100%; max-width: 320px;" src="'.$renderUrl.'"></video>',
+            $html,
+        );
+        $this->assertStringContainsString(
+            '<a href="'.$renderUrl.'" target="_blank" rel="noopener">Open in new tab</a>',
             $html,
         );
     }
@@ -113,8 +117,8 @@ class VideoViewPageTest extends TestCase
 
             $this->assertSame(
                 1,
-                preg_match('#<a href="([^"]+)" target="_blank" rel="noopener">Open rendered video</a>#', $html, $matches),
-                'Expected a "Open rendered video" link in the rendered view page.',
+                preg_match('#<video controls preload="metadata"[^>]*src="([^"]+)"></video>#', $html, $matches),
+                'Expected an embedded <video> preview in the rendered view page.',
             );
 
             $this->get(html_entity_decode($matches[1]))->assertOk();

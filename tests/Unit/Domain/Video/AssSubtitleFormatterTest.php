@@ -30,7 +30,17 @@ class AssSubtitleFormatterTest extends TestCase
         $this->assertStringContainsString('PlayResX: 1080', $ass);
         $this->assertStringContainsString('PlayResY: 1920', $ass);
         $this->assertStringContainsString(
-            'Style: Default,DejaVu Sans,64,&H00FFFFFF,&H00000000,2,60,60,120',
+            'Style: Default,DejaVu Sans,64,&H00FFFFFF,&H00000000,-1,1,2,0,2,60,60,120',
+            $ass
+        );
+    }
+
+    public function test_it_writes_the_configured_outline_and_shadow_width(): void
+    {
+        $ass = AssSubtitleFormatter::format([], $this->style(['outline_width' => 3.5, 'shadow_width' => 1.5]));
+
+        $this->assertStringContainsString(
+            'Style: Default,DejaVu Sans,64,&H00FFFFFF,&H00000000,-1,1,3.5,1.5,2,60,60,120',
             $ass
         );
     }
@@ -38,19 +48,19 @@ class AssSubtitleFormatterTest extends TestCase
     public function test_bottom_position_maps_to_alignment_two(): void
     {
         $ass = AssSubtitleFormatter::format([], $this->style(['position' => 'bottom']));
-        $this->assertStringContainsString(',2,60,60,120', $ass);
+        $this->assertStringContainsString(',-1,1,2,0,2,60,60,120', $ass);
     }
 
     public function test_top_position_maps_to_alignment_eight(): void
     {
         $ass = AssSubtitleFormatter::format([], $this->style(['position' => 'top']));
-        $this->assertStringContainsString(',8,60,60,120', $ass);
+        $this->assertStringContainsString(',-1,1,2,0,8,60,60,120', $ass);
     }
 
     public function test_middle_position_maps_to_alignment_five(): void
     {
         $ass = AssSubtitleFormatter::format([], $this->style(['position' => 'middle']));
-        $this->assertStringContainsString(',5,60,60,120', $ass);
+        $this->assertStringContainsString(',-1,1,2,0,5,60,60,120', $ass);
     }
 
     public function test_empty_segments_produce_a_valid_header_with_no_dialogue_lines(): void

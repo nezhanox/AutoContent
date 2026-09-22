@@ -77,13 +77,33 @@ final class FfmpegVideoRenderer implements VideoRendererInterface
 
     private function normalizeScene(VideoScene $scene, Filesystem $disk, string $workDir, int $index): string
     {
-        $asset = $scene->asset;
-        $source = $this->materialize($disk, $asset->path, $workDir, "scene_{$index}_src".$this->extension($asset->path));
         $output = "{$workDir}/scene_{$index}.mp4";
-
         $width = config('render.resolution.width');
         $height = config('render.resolution.height');
         $fps = config('render.fps');
+
+        $asset = $scene->asset;
+
+        // A `text` scene has no background media by design (a pure caption
+        // card) — give it a solid backdrop instead of loading a source file.
+        if ($asset === null) {
+            $command = [
+                $this->binary(), '-y', '-f', 'lavfi',
+                '-i', 'color=c='.config('render.text_scene_background', 'black').":s={$width}x{$height}:r={$fps}",
+                '-t', (string) $scene->duration, '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', $output,
+            ];
+
+            $result = Process::timeout(config('render.timeout'))->run($command);
+
+            if ($result->failed()) {
+                throw new RuntimeException("Scene {$index} normalization failed: ".trim($result->errorOutput() ?: $result->output()));
+            }
+
+            return $output;
+        }
+
+        $source = $this->materialize($disk, $asset->path, $workDir, "scene_{$index}_src".$this->extension($asset->path));
+
         $vf = "scale={$width}:{$height}:force_original_aspect_ratio=decrease,"
             ."pad={$width}:{$height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={$fps}";
 
