@@ -28,6 +28,7 @@ class VideoController extends Controller
         $videos = Video::query()
             ->with(['contentProject:id,name', 'contentIdea:id,title'])
             ->latest('id')
+            ->limit(100)
             ->get()
             ->map(fn (Video $video) => [
                 'id' => $video->id,

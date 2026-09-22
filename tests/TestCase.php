@@ -14,5 +14,6 @@ abstract class TestCase extends BaseTestCase
 
         Process::preventStrayProcesses();
         Http::preventStrayRequests();
+        $this->withoutVite();
     }
 }

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
-import { AppLayout } from '../../Components/AppLayout';
+import { AppLayout } from '../../components/AppLayout';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from '../../components/ui/table';
@@ -33,6 +33,7 @@ interface VideosIndexProps {
 
 export default function VideosIndex({ videos, channels }: VideosIndexProps) {
     const [open, setOpen] = useState(false);
+    const [retryError, setRetryError] = useState<string | null>(null);
     const { data, setData, post, processing, errors, reset } = useForm({
         content_project_id: '',
         topic: '',
@@ -49,7 +50,10 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
     }
 
     function retry(videoId: number) {
-        router.post(`/console/videos/${videoId}/retry`);
+        router.post(`/console/videos/${videoId}/retry`, {}, {
+            onError: (errors) => setRetryError(errors.video ?? 'Retry failed.'),
+            onSuccess: () => setRetryError(null),
+        });
     }
 
     return (
@@ -58,6 +62,8 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
                 <h1 className="text-lg font-semibold">Videos</h1>
                 <Button onClick={() => setOpen(true)}>Generate Video</Button>
             </div>
+
+            {retryError && <p className="mb-4 text-sm text-red-600">{retryError}</p>}
 
             <Table>
                 <TableHead>

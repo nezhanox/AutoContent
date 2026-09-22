@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(HandleInertiaRequests::class)->prefix('console')->group(function () {
     Route::get('login', [AuthController::class, 'create'])->name('login');
-    Route::post('login', [AuthController::class, 'store']);
+    Route::post('login', [AuthController::class, 'store'])->middleware('throttle:6,1');
 
     Route::middleware('auth')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('console.dashboard');
