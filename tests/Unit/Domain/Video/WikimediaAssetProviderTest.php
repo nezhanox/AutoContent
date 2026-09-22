@@ -50,6 +50,23 @@ class WikimediaAssetProviderTest extends TestCase
         Storage::disk(config('filesystems.default'))->assertExists('assets/stock/wikimedia/111.jpg');
     }
 
+    public function test_it_restricts_the_search_to_bitmap_and_drawing_files(): void
+    {
+        Http::fake([
+            'commons.wikimedia.org/*' => Http::response(['query' => ['pages' => []]], 200),
+        ]);
+
+        $provider = new WikimediaAssetProvider;
+        $provider->search('marble bust of Marcus Aurelius', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        Http::assertSent(function ($request): bool {
+            $search = $request->data()['gsrsearch'] ?? '';
+
+            return str_contains($search, 'marble bust of Marcus Aurelius')
+                && str_contains($search, 'filetype:bitmap|drawing');
+        });
+    }
+
     public function test_it_returns_an_empty_array_and_makes_no_request_for_unsupported_types(): void
     {
         Http::fake();

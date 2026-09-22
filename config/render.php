@@ -27,7 +27,7 @@ return [
     'text_scene_background' => env('RENDER_TEXT_SCENE_BACKGROUND', '0x262629'),
 
     'subtitles' => [
-        'font' => env('RENDER_SUBTITLE_FONT', 'DejaVu Sans'),
+        'font' => env('RENDER_SUBTITLE_FONT', 'Oswald'),
         'font_size' => (int) env('RENDER_SUBTITLE_FONT_SIZE', 64),
         // 'middle' keeps captions clear of the top/bottom edges, where a
         // scene's own photo content (faces, horizon lines) most often sits.

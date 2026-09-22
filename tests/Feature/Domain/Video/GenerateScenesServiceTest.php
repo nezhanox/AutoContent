@@ -35,8 +35,8 @@ class GenerateScenesServiceTest extends TestCase
         $system = $manager->capturedMessages[0]['content'];
 
         $this->assertStringContainsString('stoicism', $system);
-        $this->assertStringContainsString('classical art', $system);
-        $this->assertStringContainsString('marble statue', $system);
+        $this->assertStringContainsString('Marcus Aurelius', $system);
+        $this->assertStringContainsString('short keyword phrase', $system);
     }
 
     public function test_it_returns_the_parsed_scenes_on_a_valid_first_response(): void

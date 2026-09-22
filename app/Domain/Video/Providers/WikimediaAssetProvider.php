@@ -72,7 +72,10 @@ final class WikimediaAssetProvider implements AssetProviderInterface
             'action' => 'query',
             'format' => 'json',
             'generator' => 'search',
-            'gsrsearch' => $query,
+            // filetype: restricts CirrusSearch to actual images (bitmap/drawing),
+            // otherwise a query also matches scanned book/PDF pages and document
+            // text, which dominate relevance ranking and crowd out real photos.
+            'gsrsearch' => "{$query} filetype:bitmap|drawing",
             'gsrnamespace' => 6,
             'gsrlimit' => max(3, $maxResults),
             'prop' => 'imageinfo',

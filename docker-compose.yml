@@ -1,3 +1,14 @@
+# .env's DB_HOST/DB_PORT/REDIS_HOST/REDIS_PORT point at the *host-mapped*
+# ports (127.0.0.1:15432/16379) so `php artisan test`/tinker/etc. run
+# directly on the host can reach postgres/redis. Containers on the compose
+# network must instead reach them by service name on their container ports,
+# so app/worker/horizon override those four vars below.
+x-container-db-redis: &container-db-redis
+  DB_HOST: postgres
+  DB_PORT: 5432
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+
 services:
   app:
     build:
@@ -6,6 +17,8 @@ services:
     volumes:
       - .:/var/www/html
     env_file: .env
+    environment:
+      <<: *container-db-redis
     depends_on:
       postgres:
         condition: service_healthy
@@ -15,7 +28,7 @@ services:
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "8080:80"
+      - "${NGINX_HOST_PORT:-8090}:80"
     volumes:
       - .:/var/www/html
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -57,6 +70,12 @@ services:
       - .:/var/www/html
       - whisper_models:/root/.cache/huggingface
     env_file: .env
+    environment:
+      <<: *container-db-redis
+      # .env's WHISPER_PYTHON_BINARY is a host-only .venv-whisper path (for
+      # running whisper directly on the Mac). The worker image installs
+      # faster-whisper into its own system python3 instead — no venv there.
+      WHISPER_PYTHON_BINARY: python3
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,6 +90,8 @@ services:
     volumes:
       - .:/var/www/html
     env_file: .env
+    environment:
+      <<: *container-db-redis
     depends_on:
       postgres:
         condition: service_healthy

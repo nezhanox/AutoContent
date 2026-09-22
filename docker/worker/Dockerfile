@@ -15,6 +15,15 @@ RUN apt-get update && apt-get install -y \
     && pip3 install --no-cache-dir --break-system-packages faster-whisper \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Subtitle font for FfmpegVideoRenderer/libass (config('render.subtitles.font')).
+# Oswald is a variable font shipping Bold/SemiBold as named instances, which
+# fontconfig exposes as styles under the single "Oswald" family — matching
+# the ASS style's Fontname=Oswald + Bold=-1 already set by AssSubtitleFormatter.
+RUN mkdir -p /usr/share/fonts/truetype/oswald \
+    && curl -sL "https://github.com/google/fonts/raw/main/ofl/oswald/Oswald%5Bwght%5D.ttf" \
+        -o /usr/share/fonts/truetype/oswald/Oswald-Variable.ttf \
+    && fc-cache -f
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html

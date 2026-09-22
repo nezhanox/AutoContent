@@ -60,12 +60,14 @@ final class GenerateScenesService
             'You are a video editor breaking a script into an ordered list of scenes for a short '
             .'vertical video. Niche: %s. Each scene has a type, an approximate duration in seconds, an optional '
             .'visual search query describing what should be shown on screen, and the portion of narration '
-            .'text spoken during it. For visual_query: write a concrete, literal search phrase a stock-photo/art '
-            .'search engine can match — not an abstract metaphor. When the niche or a scene is historical, '
-            .'philosophical, mythological, or about a historical figure, prefer phrases describing classical art '
-            .'depicting it (e.g. "marble statue of a stoic philosopher", "renaissance painting of the death of '
-            .'Seneca") over modern stock-photo concepts, since a museum art archive is searched before generic '
-            .'stock photos. Respond only with JSON matching the given schema — no prose outside the JSON.',
+            .'text spoken during it. For visual_query: write a short keyword phrase (2-5 words, no full '
+            .'sentences, no trailing qualifiers like ", classical art") that an art/photo archive search engine '
+            .'can match on file titles. When the niche or a scene is historical, philosophical, mythological, or '
+            .'about a historical figure, name the actual person and a medium word instead of a generic '
+            .'description — e.g. "Marcus Aurelius bust", "Seneca portrait painting", "Epictetus statue" rather '
+            .'than "marble statue of a stoic philosopher" — since a museum art archive matches named entities '
+            .'far better than abstract descriptions. Respond only with JSON matching the given schema — no prose '
+            .'outside the JSON.',
             $project?->niche ?? 'general',
         );
 
