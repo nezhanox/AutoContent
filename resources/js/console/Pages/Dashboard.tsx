@@ -1,4 +1,4 @@
-import { AppLayout } from '../Components/AppLayout';
+import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from '../components/ui/table';
