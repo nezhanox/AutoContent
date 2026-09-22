@@ -4,6 +4,7 @@ namespace Tests\Feature\Console;
 
 use App\Domain\Llm\Providers\FakeLlmProvider;
 use App\Jobs\GenerateScriptJob;
+use App\Jobs\RenderVideoJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Enums\ContentIdeaStatus;
@@ -80,5 +81,73 @@ class VideoControllerTest extends TestCase
         $this->assertSame(ContentIdeaStatus::Approved, $idea->status);
 
         Queue::assertPushed(GenerateScriptJob::class, fn (GenerateScriptJob $job) => $job->contentIdeaId === $idea->id);
+    }
+
+    public function test_index_marks_failed_and_stalled_videos_as_retryable(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $project = ContentProject::factory()->create();
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+        Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'render',
+        ]);
+        Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::Draft,
+        ]);
+
+        $this->get('/console/videos')
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('videos', 2)
+                ->where('videos.0.canRetry', false)
+                ->where('videos.1.canRetry', true)
+            );
+    }
+
+    public function test_retry_dispatches_the_job_for_the_failed_stage_and_resets_status(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        Queue::fake();
+
+        $project = ContentProject::factory()->create();
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::Failed,
+            'failed_stage' => 'render',
+            'error_message' => 'ffmpeg exploded',
+        ]);
+
+        $this->post("/console/videos/{$video->id}/retry")->assertRedirect();
+
+        $video->refresh();
+        $this->assertSame(VideoStatus::AssetsReady, $video->status);
+        $this->assertNull($video->failed_stage);
+        $this->assertNull($video->error_message);
+
+        Queue::assertPushed(RenderVideoJob::class, fn (RenderVideoJob $job) => $job->videoId === $video->id);
+    }
+
+    public function test_retry_without_a_failed_stage_returns_an_error(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $project = ContentProject::factory()->create();
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::Draft,
+            'failed_stage' => null,
+        ]);
+
+        $this->post("/console/videos/{$video->id}/retry")->assertSessionHasErrors('video');
     }
 }

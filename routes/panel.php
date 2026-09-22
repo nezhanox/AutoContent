@@ -16,5 +16,6 @@ Route::middleware(HandleInertiaRequests::class)->prefix('console')->group(functi
 
         Route::get('videos', [VideoController::class, 'index'])->name('console.videos.index');
         Route::post('videos/generate', [VideoController::class, 'generate'])->name('console.videos.generate');
+        Route::post('videos/{video}/retry', [VideoController::class, 'retry'])->name('console.videos.retry');
     });
 });

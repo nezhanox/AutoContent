@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { router, useForm } from '@inertiajs/react';
 import { AppLayout } from '../../Components/AppLayout';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -17,6 +17,7 @@ interface VideoRow {
     status: string;
     stageLabel: string;
     stageColor: 'danger' | 'success' | 'warning' | 'default';
+    canRetry: boolean;
     createdAt: string | null;
 }
 
@@ -47,6 +48,10 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
         });
     }
 
+    function retry(videoId: number) {
+        router.post(`/console/videos/${videoId}/retry`);
+    }
+
     return (
         <AppLayout>
             <div className="mb-4 flex items-center justify-between">
@@ -62,6 +67,7 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
                         <TableHeadCell>Title</TableHeadCell>
                         <TableHeadCell>Status</TableHeadCell>
                         <TableHeadCell>Stage</TableHeadCell>
+                        <TableHeadCell></TableHeadCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -72,6 +78,13 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
                             <TableCell>{video.title}</TableCell>
                             <TableCell><Badge>{video.status}</Badge></TableCell>
                             <TableCell><Badge variant={video.stageColor}>{video.stageLabel}</Badge></TableCell>
+                            <TableCell>
+                                {video.canRetry && (
+                                    <Button variant="outline" size="sm" onClick={() => retry(video.id)}>
+                                        Retry
+                                    </Button>
+                                )}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
