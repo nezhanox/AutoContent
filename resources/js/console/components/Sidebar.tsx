@@ -1,10 +1,11 @@
 import { Link } from '@inertiajs/react';
-import { Clapperboard, LayoutDashboard } from 'lucide-react';
+import { Clapperboard, LayoutDashboard, Network } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const NAV_ITEMS = [
     { href: '/console', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/console/videos', label: 'Videos', icon: Clapperboard },
+    { href: '/console/architecture', label: 'Architecture', icon: Network },
 ];
 
 export function Sidebar({ current }: { current: string }) {
@@ -20,7 +21,7 @@ export function Sidebar({ current }: { current: string }) {
 
             <nav className="flex flex-col items-center gap-1">
                 {NAV_ITEMS.map((item) => {
-                    const active = current === item.href;
+                    const active = item.href === '/console' ? current === '/console' : current.startsWith(item.href);
                     const Icon = item.icon;
 
                     return (

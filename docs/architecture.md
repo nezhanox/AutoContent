@@ -3,6 +3,8 @@
 Короткий довідник по тому, як влаштований код. Для того, як користуватись
 застосунком — `docs/GUIDE.md`. Для тестів — `docs/testing.md`.
 
+Інтерактивна версія розділів 1–3 нижче: `/console/architecture` (Modules/Pipeline/Providers).
+
 ## 1. Доменна модель (`app/Domain`)
 
 Код організований DDD-стилем, по bounded contexts, а не по MVC-шарах:

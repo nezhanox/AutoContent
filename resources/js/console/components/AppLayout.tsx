@@ -17,7 +17,7 @@ export function AppLayout({ title, children }: AppLayoutProps) {
 
     return (
         <div className="flex min-h-screen bg-console-bg">
-            <Sidebar current={url === '/console' ? '/console' : '/console/videos'} />
+            <Sidebar current={url} />
 
             <div className="flex-1">
                 <header className="flex items-center justify-between border-b border-console-border bg-console-surface px-8 py-5">

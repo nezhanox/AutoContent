@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Console\ArchitectureController;
 use App\Http\Controllers\Console\AuthController;
 use App\Http\Controllers\Console\DashboardController;
 use App\Http\Controllers\Console\VideoController;
@@ -17,5 +18,7 @@ Route::middleware(HandleInertiaRequests::class)->prefix('console')->group(functi
         Route::get('videos', [VideoController::class, 'index'])->name('console.videos.index');
         Route::post('videos/generate', [VideoController::class, 'generate'])->name('console.videos.generate');
         Route::post('videos/{video}/retry', [VideoController::class, 'retry'])->name('console.videos.retry');
+
+        Route::get('architecture', [ArchitectureController::class, 'index'])->name('console.architecture');
     });
 });
