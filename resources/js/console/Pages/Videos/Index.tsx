@@ -1,8 +1,10 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { AppLayout } from '../../components/AppLayout';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from '../../components/ui/table';
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
@@ -57,48 +59,73 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
     }
 
     return (
-        <AppLayout>
-            <div className="mb-4 flex items-center justify-between">
-                <h1 className="text-lg font-semibold">Videos</h1>
-                <Button onClick={() => setOpen(true)}>Generate Video</Button>
-            </div>
+        <AppLayout title="Videos">
+            <section>
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-console-text">
+                        All videos <span className="font-normal text-console-text-muted">({videos.length})</span>
+                    </h2>
+                    <Button onClick={() => setOpen(true)}>
+                        <Plus className="h-4 w-4" strokeWidth={2.25} />
+                        Generate video
+                    </Button>
+                </div>
 
-            {retryError && <p className="mb-4 text-sm text-red-600">{retryError}</p>}
+                {retryError && (
+                    <p className="mb-4 rounded-lg bg-console-danger-soft px-4 py-2 text-sm text-console-danger">{retryError}</p>
+                )}
 
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableHeadCell>Channel</TableHeadCell>
-                        <TableHeadCell>Idea</TableHeadCell>
-                        <TableHeadCell>Title</TableHeadCell>
-                        <TableHeadCell>Status</TableHeadCell>
-                        <TableHeadCell>Stage</TableHeadCell>
-                        <TableHeadCell></TableHeadCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {videos.map((video) => (
-                        <TableRow key={video.id}>
-                            <TableCell>{video.channel}</TableCell>
-                            <TableCell>{video.idea}</TableCell>
-                            <TableCell>{video.title}</TableCell>
-                            <TableCell><Badge>{video.status}</Badge></TableCell>
-                            <TableCell><Badge variant={video.stageColor}>{video.stageLabel}</Badge></TableCell>
-                            <TableCell>
-                                {video.canRetry && (
-                                    <Button variant="outline" size="sm" onClick={() => retry(video.id)}>
-                                        Retry
-                                    </Button>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableHeadCell className="pl-5">Channel</TableHeadCell>
+                                    <TableHeadCell>Idea</TableHeadCell>
+                                    <TableHeadCell>Title</TableHeadCell>
+                                    <TableHeadCell>Status</TableHeadCell>
+                                    <TableHeadCell>Stage</TableHeadCell>
+                                    <TableHeadCell className="pr-5"></TableHeadCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {videos.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="px-5 py-8 text-center text-console-text-muted">
+                                            No videos yet — generate one to get started.
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                                {videos.map((video) => (
+                                    <TableRow key={video.id}>
+                                        <TableCell className="pl-5">{video.channel}</TableCell>
+                                        <TableCell className="max-w-xs truncate text-console-text-muted">{video.idea}</TableCell>
+                                        <TableCell className="max-w-xs truncate font-medium">{video.title}</TableCell>
+                                        <TableCell>
+                                            <Badge>{video.status}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={video.stageColor}>{video.stageLabel}</Badge>
+                                        </TableCell>
+                                        <TableCell className="pr-5">
+                                            {video.canRetry && (
+                                                <Button variant="outline" size="sm" onClick={() => retry(video.id)}>
+                                                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                                    Retry
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </section>
 
             <Dialog open={open} onClose={() => setOpen(false)}>
                 <DialogHeader>
-                    <DialogTitle>Generate Video</DialogTitle>
+                    <DialogTitle>Generate video</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1">
@@ -122,7 +149,7 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
                             value={data.topic}
                             onChange={(e) => setData('topic', e.target.value)}
                         />
-                        {errors.topic && <p className="text-sm text-red-600">{errors.topic}</p>}
+                        {errors.topic && <p className="text-sm text-console-danger">{errors.topic}</p>}
                     </div>
 
                     <DialogFooter>

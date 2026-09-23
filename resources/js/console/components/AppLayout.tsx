@@ -1,24 +1,35 @@
 import { PropsWithChildren } from 'react';
-import { Link, router } from '@inertiajs/react';
-import { Button } from '../components/ui/button';
+import { router, usePage } from '@inertiajs/react';
+import { LogOut } from 'lucide-react';
+import { Sidebar } from './Sidebar';
+import { Button } from './ui/button';
 
-export function AppLayout({ children }: PropsWithChildren) {
+interface AppLayoutProps extends PropsWithChildren {
+    title: string;
+}
+
+export function AppLayout({ title, children }: AppLayoutProps) {
+    const { url } = usePage();
+
     function logout() {
         router.post('/console/logout');
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="border-b bg-white">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                    <nav className="flex items-center gap-4 text-sm font-medium">
-                        <Link href="/console" className="text-gray-900">Dashboard</Link>
-                        <Link href="/console/videos" className="text-gray-500 hover:text-gray-900">Videos</Link>
-                    </nav>
-                    <Button variant="outline" size="sm" onClick={logout}>Sign out</Button>
-                </div>
-            </header>
-            <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+        <div className="flex min-h-screen bg-console-bg">
+            <Sidebar current={url === '/console' ? '/console' : '/console/videos'} />
+
+            <div className="flex-1">
+                <header className="flex items-center justify-between border-b border-console-border bg-console-surface px-8 py-5">
+                    <h1 className="text-2xl font-semibold text-console-text">{title}</h1>
+                    <Button variant="ghost" size="sm" onClick={logout}>
+                        <LogOut className="h-4 w-4" strokeWidth={2} />
+                        Sign out
+                    </Button>
+                </header>
+
+                <main className="mx-auto max-w-6xl px-8 py-8">{children}</main>
+            </div>
         </div>
     );
 }
