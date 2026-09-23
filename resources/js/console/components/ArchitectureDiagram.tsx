@@ -1,17 +1,30 @@
 import { useState } from 'react';
 import { cn } from '../lib/utils';
-import type { ArchView } from '../data/architecture';
+import type { ArchNode, ArchView } from '../data/architecture';
 import { Card, CardContent } from './ui/card';
 
 /**
- * Pulls the line's endpoint back toward `from` by `pullBackPct` percentage
- * points, so the arrowhead marker lands in the gap before the target node's
- * button rather than underneath it (where it would be hidden).
+ * A flat pullback clears short labels (e.g. "local") but not long ones
+ * (e.g. "DispatchDuePublicationsCommand") — the button is wider than the
+ * gap, so the arrowhead still lands underneath it. Scale the pullback with
+ * the target label's length instead, capped so short labels don't get an
+ * exaggerated gap.
  */
-function shortenedEndpoint(from: { x: number; y: number }, to: { x: number; y: number }, pullBackPct = 4) {
+function pullBackFor(label: string): number {
+    return Math.min(12, 2 + label.length * 0.35);
+}
+
+/**
+ * Pulls the line's endpoint back toward `from`, so the arrowhead marker
+ * lands in the gap before the target node's button rather than underneath
+ * it (where it would be hidden).
+ */
+function shortenedEndpoint(from: { x: number; y: number }, to: ArchNode) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.sqrt(dx * dx + dy * dy) || 1;
+    const pullBackPct = pullBackFor(to.label);
+
     return {
         x: to.x - (dx / length) * pullBackPct,
         y: to.y - (dy / length) * pullBackPct,
