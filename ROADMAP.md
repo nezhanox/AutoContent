@@ -669,6 +669,16 @@ error-path підтверджено наживо (happy path покритий а
 Обсяг: інші 9 Filament-ресурсів, сторінка "View" відео, ролі/дозволи,
 cutover `/admin` — свідомо поза v1, наступні ітерації.
 
+**Visual refresh (2026-09-23):** користувач показав референс-скріншот
+(procurement SaaS dashboard — темно-індиго акцент, лавандовий фон, білі
+картки з м'якою тінню, іконковий sidebar). Перестилізовано без зміни
+пропсів/даних: design tokens у `resources/css/app.css` (`--color-console-*`,
+шрифт Inter), новий `Sidebar.tsx` (lucide-react іконки), Button/Badge/
+Card/Table/Input/Dialog під нову палітру, Dashboard (stat-tiles +
+Performance-картки), Videos (таблиця в картці), Login. Дані/тести не
+чіпались — 300/300, `pint`, `tsc` чисті. Живий рендер сам не перевіряв
+(немає підключеного браузера в сесії) — користувач перевіряє сам.
+
 Spec: `docs/superpowers/specs/2026-09-22-phase7-console-admin-design.md`
 Plan: `docs/superpowers/plans/2026-09-22-phase7-console-admin.md`
 
