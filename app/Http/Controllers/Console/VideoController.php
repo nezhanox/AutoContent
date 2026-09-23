@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers\Console;
 
-use App\Domain\Content\Services\GenerateContentIdeaService;
+use App\Domain\Content\Services\StartVideoGenerationService;
 use App\Http\Controllers\Controller;
 use App\Jobs\CollectVideoAssetsJob;
 use App\Jobs\GenerateScenesJob;
-use App\Jobs\GenerateScriptJob;
 use App\Jobs\GenerateSubtitlesJob;
 use App\Jobs\GenerateVoiceoverJob;
 use App\Jobs\QualityCheckVideoJob;
 use App\Jobs\RenderVideoJob;
 use App\Models\ContentProject;
-use App\Models\Enums\ContentIdeaStatus;
 use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Http\RedirectResponse;
@@ -56,14 +54,10 @@ class VideoController extends Controller
         ]);
 
         try {
-            $idea = app(GenerateContentIdeaService::class)->generate(
+            app(StartVideoGenerationService::class)->generate(
                 ContentProject::findOrFail($data['content_project_id']),
                 $data['topic'],
             );
-
-            $idea->update(['status' => ContentIdeaStatus::Approved]);
-
-            GenerateScriptJob::dispatch($idea->id);
         } catch (Throwable $exception) {
             return back()->withErrors(['topic' => $exception->getMessage()]);
         }
