@@ -23,7 +23,7 @@ export default function Architecture() {
                 ))}
             </div>
 
-            <ArchitectureDiagram view={active} />
+            <ArchitectureDiagram key={active.id} view={active} />
         </AppLayout>
     );
 }

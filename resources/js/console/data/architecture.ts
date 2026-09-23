@@ -13,11 +13,18 @@ export interface ArchEdge {
     label?: string;
 }
 
+export interface ArchGroup {
+    label: string;
+    /** Percentage position (0-100) within the diagram canvas. */
+    y: number;
+}
+
 export interface ArchView {
     id: 'modules' | 'pipeline' | 'providers';
     title: string;
     nodes: ArchNode[];
     edges: ArchEdge[];
+    groups?: ArchGroup[];
 }
 
 const modules: ArchView = {
@@ -52,17 +59,17 @@ const pipeline: ArchView = {
     id: 'pipeline',
     title: 'Pipeline',
     nodes: [
-        { id: 'script', label: 'GenerateScriptJob', description: 'ContentIdea → Script через LLM.', x: 8, y: 18 },
-        { id: 'scenes', label: 'GenerateScenesJob', description: 'Script → Video + сцени (VideoScene[]).', x: 24.8, y: 18 },
-        { id: 'voiceover', label: 'GenerateVoiceoverJob', description: 'Озвучка через ElevenLabs (чи Fake у тестах).', x: 41.6, y: 18 },
-        { id: 'assets', label: 'CollectVideoAssetsJob', description: 'Підбір MediaAsset для кожної сцени через asset-чейн.', x: 58.4, y: 18 },
-        { id: 'subtitles', label: 'GenerateSubtitlesJob', description: 'Whisper → субтитри.', x: 75.2, y: 18 },
-        { id: 'render', label: 'RenderVideoJob', description: 'ffmpeg → фінальний file_path.', x: 92, y: 18 },
-        { id: 'quality', label: 'QualityCheckVideoJob', description: 'Автоматична перевірка якості рендеру.', x: 8, y: 68 },
-        { id: 'approve', label: 'Manual Approve', description: 'Ручне підтвердження в адмінці — єдиний неавтоматичний крок ланцюга.', x: 29, y: 68 },
+        { id: 'script', label: 'GenerateScriptJob', description: 'ContentIdea → Script через LLM.', x: 12, y: 18 },
+        { id: 'scenes', label: 'GenerateScenesJob', description: 'Script → Video + сцени (VideoScene[]).', x: 27.2, y: 18 },
+        { id: 'voiceover', label: 'GenerateVoiceoverJob', description: 'Озвучка через ElevenLabs (чи Fake у тестах).', x: 42.4, y: 18 },
+        { id: 'assets', label: 'CollectVideoAssetsJob', description: 'Підбір MediaAsset для кожної сцени через asset-чейн.', x: 57.6, y: 18 },
+        { id: 'subtitles', label: 'GenerateSubtitlesJob', description: 'Whisper → субтитри.', x: 72.8, y: 18 },
+        { id: 'render', label: 'RenderVideoJob', description: 'ffmpeg → фінальний file_path.', x: 88, y: 18 },
+        { id: 'quality', label: 'QualityCheckVideoJob', description: 'Автоматична перевірка якості рендеру.', x: 12, y: 68 },
+        { id: 'approve', label: 'Manual Approve', description: 'Ручне підтвердження в адмінці — єдиний неавтоматичний крок ланцюга.', x: 31, y: 68 },
         { id: 'dispatch_due', label: 'DispatchDuePublicationsCommand', description: 'Планувальник, щохвилини перевіряє scheduled_at.', x: 50, y: 68 },
-        { id: 'publish', label: 'PublishVideoJob', description: 'Публікація в соцмережу через Publishing-провайдер.', x: 71, y: 68 },
-        { id: 'publisher', label: 'FakeSocialPublisher', description: 'Заглушка — реальної інтеграції з соцмережами ще нема.', x: 92, y: 68 },
+        { id: 'publish', label: 'PublishVideoJob', description: 'Публікація в соцмережу через Publishing-провайдер.', x: 69, y: 68 },
+        { id: 'publisher', label: 'FakeSocialPublisher', description: 'Заглушка — реальної інтеграції з соцмережами ще нема.', x: 88, y: 68 },
     ],
     edges: [
         { from: 'script', to: 'scenes', label: 'idea → script' },
@@ -82,14 +89,14 @@ const providers: ArchView = {
     id: 'providers',
     title: 'Providers',
     nodes: [
-        { id: 'wikimedia', label: 'wikimedia', description: 'Класичне мистецтво для історичних сцен; порожньо — падає далі по чейну.', x: 12, y: 25 },
-        { id: 'pixabay', label: 'pixabay', description: 'Комерційний stock, другий у черзі asset-чейну.', x: 38, y: 25 },
-        { id: 'pexels', label: 'pexels', description: 'Комерційний stock, третій у черзі asset-чейну.', x: 64, y: 25 },
-        { id: 'local', label: 'local', description: 'Локальна медіатека — останній фолбек, завжди щось повертає.', x: 90, y: 25 },
-        { id: 'override', label: 'providerOverride', description: 'Явний provider/model, переданий у виклик — найвищий пріоритет.', x: 12, y: 70 },
-        { id: 'purpose_setting', label: 'project.settings.ai.<purpose>', description: "ContentProject.settings.ai.<purpose>, напр. 'script'.", x: 38, y: 70 },
-        { id: 'default_setting', label: 'project.settings.ai.default', description: 'Дефолт каналу, якщо purpose-специфічного немає.', x: 64, y: 70 },
-        { id: 'config_default', label: "config('llm.default_provider')", description: 'Глобальний дефолт застосунку — останній фолбек.', x: 90, y: 70 },
+        { id: 'wikimedia', label: 'wikimedia', description: 'Класичне мистецтво для історичних сцен; порожньо — падає далі по чейну.', x: 15, y: 25 },
+        { id: 'pixabay', label: 'pixabay', description: 'Комерційний stock, другий у черзі asset-чейну.', x: 38.3, y: 25 },
+        { id: 'pexels', label: 'pexels', description: 'Комерційний stock, третій у черзі asset-чейну.', x: 61.7, y: 25 },
+        { id: 'local', label: 'local', description: 'Локальна медіатека — останній фолбек, завжди щось повертає.', x: 85, y: 25 },
+        { id: 'override', label: 'providerOverride', description: 'Явний provider/model, переданий у виклик — найвищий пріоритет.', x: 15, y: 70 },
+        { id: 'purpose_setting', label: 'project.settings.ai.<purpose>', description: "ContentProject.settings.ai.<purpose>, напр. 'script'.", x: 38.3, y: 70 },
+        { id: 'default_setting', label: 'project.settings.ai.default', description: 'Дефолт каналу, якщо purpose-специфічного немає.', x: 61.7, y: 70 },
+        { id: 'config_default', label: "config('llm.default_provider')", description: 'Глобальний дефолт застосунку — останній фолбек.', x: 85, y: 70 },
     ],
     edges: [
         { from: 'wikimedia', to: 'pixabay', label: 'no hit' },
@@ -98,6 +105,10 @@ const providers: ArchView = {
         { from: 'override', to: 'purpose_setting', label: 'not set' },
         { from: 'purpose_setting', to: 'default_setting', label: 'not set' },
         { from: 'default_setting', to: 'config_default', label: 'not set' },
+    ],
+    groups: [
+        { label: 'B-roll assets (ChainedAssetProvider)', y: 10 },
+        { label: 'LLM provider (LlmManager::resolve())', y: 55 },
     ],
 };
 
