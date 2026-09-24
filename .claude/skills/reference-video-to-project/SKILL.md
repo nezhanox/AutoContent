@@ -134,7 +134,7 @@ description: Use when the user gives a path to a local reference video (e.g. a s
 
 8. **Звітуй користувачу:**
    - Посилання на відео (`/console/videos` або `/admin/videos/{id}`)
-     і на проєкт (`/admin/content-projects/{id}`).
+     і на проєкт (`/admin/content-projects/{id}/edit`).
    - Коротко — що саме зі стилю/структури референсу перенесено (пейсинг,
      тон, наявність тексту на екрані тощо), які `niche`/`tone`/`style`/
      `target_platforms` обрано, скільки чернеткових ітерацій знадобилось
