@@ -91,4 +91,52 @@ class CreateContentProjectCommandTest extends TestCase
         $this->assertSame(1, $exitCode);
         $this->assertDatabaseCount('content_projects', 0);
     }
+
+    public function test_it_rejects_a_duplicate_slug_instead_of_throwing(): void
+    {
+        $firstExitCode = Artisan::call('content-project:create', [
+            'name' => 'Duplicate Slug Project',
+            '--niche' => 'tech',
+            '--language' => 'en',
+            '--platform' => ['tiktok'],
+        ]);
+
+        $this->assertSame(0, $firstExitCode);
+        $this->assertDatabaseCount('content_projects', 1);
+
+        $secondExitCode = Artisan::call('content-project:create', [
+            'name' => 'Duplicate Slug Project',
+            '--niche' => 'tech',
+            '--language' => 'en',
+            '--platform' => ['tiktok'],
+        ]);
+
+        $this->assertSame(1, $secondExitCode);
+        $this->assertDatabaseCount('content_projects', 1);
+    }
+
+    public function test_it_rejects_an_explicit_duplicate_slug_instead_of_throwing(): void
+    {
+        $firstExitCode = Artisan::call('content-project:create', [
+            'name' => 'First Project',
+            '--slug' => 'shared-slug',
+            '--niche' => 'tech',
+            '--language' => 'en',
+            '--platform' => ['tiktok'],
+        ]);
+
+        $this->assertSame(0, $firstExitCode);
+        $this->assertDatabaseCount('content_projects', 1);
+
+        $secondExitCode = Artisan::call('content-project:create', [
+            'name' => 'Second Project',
+            '--slug' => 'shared-slug',
+            '--niche' => 'tech',
+            '--language' => 'en',
+            '--platform' => ['tiktok'],
+        ]);
+
+        $this->assertSame(1, $secondExitCode);
+        $this->assertDatabaseCount('content_projects', 1);
+    }
 }

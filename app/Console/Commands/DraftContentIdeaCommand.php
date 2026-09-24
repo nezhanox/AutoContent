@@ -11,6 +11,7 @@ use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Script;
 use Illuminate\Console\Command;
+use Throwable;
 
 class DraftContentIdeaCommand extends Command
 {
@@ -38,29 +39,39 @@ class DraftContentIdeaCommand extends Command
 
         try {
             $scriptData = $scriptService->generate($idea, $target);
+
+            $script = (new Script([
+                'content' => $scriptData['script'],
+                'metadata' => ['title' => $scriptData['title']],
+            ]))->setRelation('contentIdea', $idea);
+
+            $scenes = $scenesService->generate($script, $target);
         } catch (ScriptGenerationFailedException $exception) {
             $this->error("Script generation failed: {$exception->getMessage()}");
 
             return self::FAILURE;
-        }
-
-        $script = (new Script([
-            'content' => $scriptData['script'],
-            'metadata' => ['title' => $scriptData['title']],
-        ]))->setRelation('contentIdea', $idea);
-
-        try {
-            $scenes = $scenesService->generate($script, $target);
         } catch (SceneGenerationFailedException $exception) {
             $this->error("Scene generation failed: {$exception->getMessage()}");
 
             return self::FAILURE;
+        } catch (Throwable $exception) {
+            $this->error("Draft generation failed: {$exception->getMessage()}");
+
+            return self::FAILURE;
         }
 
-        $this->line(json_encode([
+        $output = json_encode([
             'script' => $scriptData,
             'scenes' => $scenes,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        if ($output === false) {
+            $this->error('Failed to encode draft output as JSON.');
+
+            return self::FAILURE;
+        }
+
+        $this->line($output);
 
         return self::SUCCESS;
     }

@@ -54,7 +54,11 @@ LLM-виклик усередині застосунку. Деталі архі�
    оціни: чи відповідає задуму користувача, чи логічна структура сцен,
    чи немає фактичних помилок/нісенітниці. Якщо ні — зміни
    `title`/`topic` (і за потреби tone/style проєкту через
-   `php artisan tinker --execute="App\Models\ContentProject::find({id})->update(['settings->tone' => '...'])"`)
+   `php artisan tinker --execute="App\Models\ContentProject::where('id', {id})->update(['settings->tone' => '...'])"`
+   — саме через query builder (`::where(...)->update(...)`), НЕ через
+   `::find({id})->update(...)`: Eloquent-форма мовчки відкидає ключ
+   `'settings->tone'`, бо він не входить у `$fillable`, і апдейт не
+   застосовується)
    і повтори. Максимум 2 повторні спроби чернетки (тобто до 3
    викликів `content-idea:draft` всього) — після цього переходь до
    фіналу з тим, що є, чесно попередивши користувача про залишкові
@@ -74,13 +78,23 @@ LLM-виклик усередині застосунку. Деталі архі�
    php artisan tinker --execute="dump(App\Models\Video::where('content_project_id', {project_id})->latest('id')->first(['id','status','failed_stage','error_message']))"
    ```
 
+   Рядок `Video` створюється не одразу, а лише коли `GenerateScenesJob`
+   доходить до відповідного кроку — тож одразу після запуску
+   `content-idea:generate` цей запит може легітимно повернути `null`
+   протягом короткого часу, поки `GenerateScriptJob`/`GenerateScenesJob`
+   ще не завершились. Це не ознака помилки — просто зачекай і повтори
+   запит.
+
    Статуси проходять `Draft → ScriptGenerated → VoiceGenerated →
    AssetsReady → Rendering → Rendered → Approved` (див.
    `docs/architecture.md` §2) — окремого статусу для перевірки якості
    немає: коли `status=Rendered`, `QualityCheckVideoJob` не міняє
    статус, а виставляє на тому ж рядку `Video` поля `quality_passed`
    (bool) і `quality_report` (масив `checks`/`notes`/`metadata`).
-   Орієнтуйся саме на ці поля, а не на неіснуючий статус. Якщо
+   Орієнтуйся саме на ці поля, а не на неіснуючий статус. `Approved` —
+   ручна дія адміна, автоматичний пайплайн сам туди не доходить: для
+   цілей цього skill фінальний очікуваний статус — `Rendered` (з
+   `quality_passed`/`quality_report`, виставленими поруч). Якщо
    `status=Failed` — прочитай `failed_stage`/`error_message`, це вже
    технічна проблема поза скоупом цього skill (не намагайся мовчки
    перезапускати рендер втретє).

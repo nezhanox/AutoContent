@@ -29,12 +29,15 @@ class CreateContentProjectCommand extends Command
     public function handle(): int
     {
         $platforms = $this->option('platform');
+        $name = $this->argument('name');
+        $slug = $this->option('slug') ?? Str::slug($name);
 
         $validator = Validator::make([
-            'name' => $this->argument('name'),
+            'name' => $name,
             'niche' => $this->option('niche'),
             'language' => $this->option('language'),
             'platforms' => $platforms,
+            'slug' => $slug,
         ], [
             'name' => ['required', 'string'],
             'niche' => ['required', 'string'],
@@ -44,6 +47,7 @@ class CreateContentProjectCommand extends Command
                 fn (SocialPlatform $platform): string => $platform->value,
                 SocialPlatform::cases(),
             ))],
+            'slug' => ['required', 'string', Rule::unique('content_projects', 'slug')],
         ]);
 
         if ($validator->fails()) {
@@ -85,11 +89,9 @@ class CreateContentProjectCommand extends Command
             $settings['ai'] = $aiSettings;
         }
 
-        $name = $this->argument('name');
-
         $project = ContentProject::create([
             'name' => $name,
-            'slug' => $this->option('slug') ?? Str::slug($name),
+            'slug' => $slug,
             'description' => $this->option('description') ?? '',
             'niche' => $this->option('niche'),
             'language' => $this->option('language'),
