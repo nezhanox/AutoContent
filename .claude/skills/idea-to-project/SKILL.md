@@ -74,8 +74,13 @@ LLM-виклик усередині застосунку. Деталі архі�
    php artisan tinker --execute="dump(App\Models\Video::where('content_project_id', {project_id})->latest('id')->first(['id','status','failed_stage','error_message']))"
    ```
 
-   Статуси проходять `ScriptGenerated → VoiceGenerated → AssetsReady →
-   Rendered → QualityChecked` (див. `docs/architecture.md` §2). Якщо
+   Статуси проходять `Draft → ScriptGenerated → VoiceGenerated →
+   AssetsReady → Rendering → Rendered → Approved` (див.
+   `docs/architecture.md` §2) — окремого статусу для перевірки якості
+   немає: коли `status=Rendered`, `QualityCheckVideoJob` не міняє
+   статус, а виставляє на тому ж рядку `Video` поля `quality_passed`
+   (bool) і `quality_report` (масив `checks`/`notes`/`metadata`).
+   Орієнтуйся саме на ці поля, а не на неіснуючий статус. Якщо
    `status=Failed` — прочитай `failed_stage`/`error_message`, це вже
    технічна проблема поза скоупом цього skill (не намагайся мовчки
    перезапускати рендер втретє).
