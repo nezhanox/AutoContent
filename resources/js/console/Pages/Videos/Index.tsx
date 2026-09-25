@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { AppLayout } from '../../components/AppLayout';
 import { Button } from '../../components/ui/button';
@@ -100,7 +100,11 @@ export default function VideosIndex({ videos, channels }: VideosIndexProps) {
                                     <TableRow key={video.id}>
                                         <TableCell className="pl-5">{video.channel}</TableCell>
                                         <TableCell className="max-w-xs truncate text-console-text-muted">{video.idea}</TableCell>
-                                        <TableCell className="max-w-xs truncate font-medium">{video.title}</TableCell>
+                                        <TableCell className="max-w-xs truncate font-medium">
+                                            <Link href={`/console/videos/${video.id}`} className="hover:underline">
+                                                {video.title}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell>
                                             <Badge>{video.status}</Badge>
                                         </TableCell>
