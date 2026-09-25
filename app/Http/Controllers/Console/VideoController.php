@@ -15,6 +15,7 @@ use App\Models\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -43,6 +44,48 @@ class VideoController extends Controller
         return Inertia::render('Videos/Index', [
             'videos' => $videos,
             'channels' => ContentProject::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function show(Video $video): Response
+    {
+        $video->load(['contentProject:id,name', 'contentIdea:id,title', 'script:id,content', 'scenes', 'voiceover', 'subtitle', 'musicAsset']);
+
+        $disk = Storage::disk(config('filesystems.default'));
+
+        return Inertia::render('Videos/Show', [
+            'video' => [
+                'id' => $video->id,
+                'title' => $video->title,
+                'description' => $video->description,
+                'status' => $video->status->value,
+                'stageLabel' => $video->currentStageLabel(),
+                'stageColor' => $video->stageBadgeColor(),
+                'canRetry' => in_array($video->status, [VideoStatus::Failed, VideoStatus::Rendering], true),
+                'channel' => $video->contentProject?->name,
+                'channelId' => $video->contentProject?->id,
+                'idea' => $video->contentIdea?->title,
+                'duration' => $video->duration,
+                'width' => $video->width,
+                'height' => $video->height,
+                'createdAt' => $video->created_at?->toIso8601String(),
+                'videoUrl' => $video->file_path ? $disk->temporaryUrl($video->file_path, now()->addMinutes(30)) : null,
+                'voiceoverUrl' => $video->voiceover?->file_path ? $disk->temporaryUrl($video->voiceover->file_path, now()->addMinutes(30)) : null,
+                'musicAssetLabel' => $video->musicAsset?->path,
+                'scriptText' => $video->script?->content,
+                'subtitlesText' => $video->subtitle?->path ? $disk->get($video->subtitle->path) : null,
+                'scenes' => $video->scenes->map(fn ($scene) => [
+                    'order' => $scene->order,
+                    'type' => $scene->type->value,
+                    'duration' => $scene->duration,
+                    'text' => $scene->text,
+                    'visualQuery' => $scene->visual_query,
+                ])->all(),
+                'qualityPassed' => $video->quality_passed,
+                'qualityReport' => $video->quality_report,
+                'errorMessage' => $video->error_message,
+                'failedStage' => $video->failed_stage,
+            ],
         ]);
     }
 

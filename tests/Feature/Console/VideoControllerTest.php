@@ -8,12 +8,18 @@ use App\Jobs\RenderVideoJob;
 use App\Models\ContentIdea;
 use App\Models\ContentProject;
 use App\Models\Enums\ContentIdeaStatus;
+use App\Models\Enums\MediaAssetType;
+use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
+use App\Models\MediaAsset;
 use App\Models\Script;
 use App\Models\User;
 use App\Models\Video;
+use App\Models\VideoScene;
+use App\Models\Voiceover;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -49,6 +55,97 @@ class VideoControllerTest extends TestCase
                 ->where('videos.0.stageLabel', $video->fresh()->currentStageLabel())
                 ->where('videos.0.stageColor', 'danger')
                 ->has('channels', 1)
+            );
+    }
+
+    public function test_show_returns_full_video_details_for_the_view_page(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        Storage::fake(config('filesystems.default'));
+        $disk = Storage::disk(config('filesystems.default'));
+        $disk->put('renders/1.mp4', 'fake-video-bytes');
+        $disk->put('voice/1.mp3', 'fake-audio-bytes');
+        $disk->put('subs/1.srt', "1\n00:00:00,000 --> 00:00:01,000\nHello");
+
+        $project = ContentProject::factory()->create(['name' => 'Tech Channel']);
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id, 'title' => 'AI trends']);
+        $script = Script::factory()->create(['content_idea_id' => $idea->id, 'content' => 'Full script text']);
+        $musicAsset = MediaAsset::factory()->create(['type' => MediaAssetType::Audio, 'path' => 'music/track.mp3']);
+        $subtitleAsset = MediaAsset::factory()->create(['type' => MediaAssetType::Subtitle, 'path' => 'subs/1.srt']);
+
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'script_id' => $script->id,
+            'title' => 'AI Trends 2026',
+            'status' => VideoStatus::Rendered,
+            'file_path' => 'renders/1.mp4',
+            'music_asset_id' => $musicAsset->id,
+            'subtitle_id' => $subtitleAsset->id,
+            'quality_passed' => true,
+            'quality_report' => ['checks' => ['has_audio_stream' => true]],
+        ]);
+
+        Voiceover::factory()->create(['video_id' => $video->id, 'file_path' => 'voice/1.mp3']);
+        VideoScene::factory()->create([
+            'video_id' => $video->id,
+            'order' => 0,
+            'type' => VideoSceneType::Hook,
+            'duration' => 5,
+            'text' => 'Hook text',
+            'visual_query' => 'query 1',
+        ]);
+
+        $this->get("/console/videos/{$video->id}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Videos/Show')
+                ->where('video.id', $video->id)
+                ->where('video.title', 'AI Trends 2026')
+                ->where('video.channel', 'Tech Channel')
+                ->where('video.channelId', $project->id)
+                ->where('video.idea', 'AI trends')
+                ->where('video.status', 'rendered')
+                ->where('video.canRetry', false)
+                ->where('video.scriptText', 'Full script text')
+                ->where('video.subtitlesText', "1\n00:00:00,000 --> 00:00:01,000\nHello")
+                ->where('video.musicAssetLabel', 'music/track.mp3')
+                ->where('video.qualityPassed', true)
+                ->where('video.qualityReport', ['checks' => ['has_audio_stream' => true]])
+                ->where('video.videoUrl', fn ($value) => is_string($value) && str_contains($value, 'renders/1.mp4'))
+                ->where('video.voiceoverUrl', fn ($value) => is_string($value) && str_contains($value, 'voice/1.mp3'))
+                ->has('video.scenes', 1)
+                ->where('video.scenes.0.order', 0)
+                ->where('video.scenes.0.type', 'hook')
+                ->where('video.scenes.0.duration', 5)
+                ->where('video.scenes.0.text', 'Hook text')
+                ->where('video.scenes.0.visualQuery', 'query 1')
+            );
+    }
+
+    public function test_show_handles_a_video_with_no_media_yet(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $project = ContentProject::factory()->create();
+        $idea = ContentIdea::factory()->create(['content_project_id' => $project->id]);
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => $idea->id,
+            'status' => VideoStatus::Draft,
+            'file_path' => null,
+            'music_asset_id' => null,
+            'subtitle_id' => null,
+        ]);
+
+        $this->get("/console/videos/{$video->id}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Videos/Show')
+                ->where('video.videoUrl', null)
+                ->where('video.voiceoverUrl', null)
+                ->where('video.musicAssetLabel', null)
+                ->where('video.subtitlesText', null)
+                ->has('video.scenes', 0)
             );
     }
 
