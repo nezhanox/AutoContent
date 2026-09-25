@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { AppLayout } from '../../components/AppLayout';
@@ -42,8 +43,13 @@ interface VideoDetail {
 }
 
 export default function VideoShow({ video }: { video: VideoDetail }) {
+    const [retryError, setRetryError] = useState<string | null>(null);
+
     function retry() {
-        router.post(`/console/videos/${video.id}/retry`);
+        router.post(`/console/videos/${video.id}/retry`, {}, {
+            onError: (errors) => setRetryError(errors.video ?? 'Retry failed.'),
+            onSuccess: () => setRetryError(null),
+        });
     }
 
     return (
@@ -63,6 +69,10 @@ export default function VideoShow({ video }: { video: VideoDetail }) {
                     </Button>
                 )}
             </div>
+
+            {retryError && (
+                <p className="mb-4 rounded-lg bg-console-danger-soft px-4 py-2 text-sm text-console-danger">{retryError}</p>
+            )}
 
             <div className="space-y-5">
                 <Card>
