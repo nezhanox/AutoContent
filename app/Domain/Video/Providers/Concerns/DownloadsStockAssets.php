@@ -76,7 +76,7 @@ trait DownloadsStockAssets
                 'width' => $width,
                 'height' => $height,
                 'duration' => $duration,
-                'metadata' => ['source' => $provider, 'query' => $query, 'external_id' => $externalId, 'tags' => $this->tagsFor($description)],
+                'metadata' => ['source' => $provider, 'query' => $query, 'external_id' => $externalId, 'tags' => $this->tagsFor($description !== '' ? $description : $query)],
                 'hash' => hash('sha256', $bytes),
             ],
         );

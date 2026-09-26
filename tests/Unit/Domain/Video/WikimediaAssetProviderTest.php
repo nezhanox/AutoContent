@@ -193,4 +193,36 @@ class WikimediaAssetProviderTest extends TestCase
         $this->assertSame($existing->id, $results[0]->id);
         Http::assertSentCount(1);
     }
+
+    public function test_it_stores_tokenized_query_words_as_tags_since_wikimedia_search_hits_have_no_separate_description_field(): void
+    {
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'commons.wikimedia.org/*' => Http::response([
+                'query' => [
+                    'pages' => [
+                        '111' => [
+                            'pageid' => 111,
+                            'title' => 'File:Marble statue of a Stoic philosopher.jpg',
+                            'imageinfo' => [[
+                                'url' => 'https://upload.wikimedia.test/original/111.jpg',
+                                'mime' => 'image/jpeg',
+                                'thumburl' => 'https://upload.wikimedia.test/thumb/111.jpg',
+                                'thumbwidth' => 1600,
+                                'thumbheight' => 2133,
+                            ]],
+                        ],
+                    ],
+                ],
+            ], 200),
+            'upload.wikimedia.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = new WikimediaAssetProvider;
+        $results = $provider->search('ancient greek statue', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame(['ancient', 'greek', 'statue'], $results[0]->metadata['tags']);
+    }
 }
