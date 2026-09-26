@@ -48,6 +48,10 @@ final class PexelsAssetProvider implements AssetProviderInterface
         $assets = [];
 
         foreach ($hits as $hit) {
+            if (! $this->isRelevant($query, $hit['description'])) {
+                continue;
+            }
+
             $asset = $this->ingest(
                 provider: 'pexels',
                 externalId: (string) $hit['id'],
@@ -58,6 +62,7 @@ final class PexelsAssetProvider implements AssetProviderInterface
                 height: $hit['height'],
                 duration: $hit['duration'] ?? null,
                 query: $query,
+                description: $hit['description'],
             );
 
             if ($asset === null || in_array($asset->id, $options->excludeAssetIds, true)) {
@@ -75,7 +80,7 @@ final class PexelsAssetProvider implements AssetProviderInterface
     }
 
     /**
-     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int}>
+     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, description: string}>
      */
     private function searchPhotos(string $query, int $maxResults): array
     {
@@ -101,6 +106,7 @@ final class PexelsAssetProvider implements AssetProviderInterface
                     'extension' => 'jpg',
                     'width' => $photo['width'] ?? 0,
                     'height' => $photo['height'] ?? 0,
+                    'description' => $photo['alt'] ?? '',
                 ];
             })
             ->filter()
@@ -109,7 +115,7 @@ final class PexelsAssetProvider implements AssetProviderInterface
     }
 
     /**
-     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, duration: ?int}>
+     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, duration: ?int, description: string}>
      */
     private function searchVideos(string $query, int $maxResults): array
     {
@@ -141,6 +147,12 @@ final class PexelsAssetProvider implements AssetProviderInterface
                     'width' => $largest['width'] ?? 0,
                     'height' => $largest['height'] ?? 0,
                     'duration' => isset($video['duration']) ? (int) $video['duration'] : null,
+                    // Pexels video hits rarely populate `tags`; the human-readable
+                    // URL slug (e.g. ".../ancient-marble-sculpture-bust-in-museum-30129839")
+                    // is usually the only real description text available, and
+                    // tagsFor()'s tokenizer already splits on `/`/`-` like any
+                    // other non-letter separator.
+                    'description' => trim(implode(' ', $video['tags'] ?? []).' '.($video['url'] ?? '')),
                 ];
             })
             ->filter()

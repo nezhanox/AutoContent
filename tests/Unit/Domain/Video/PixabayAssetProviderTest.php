@@ -50,6 +50,74 @@ class PixabayAssetProviderTest extends TestCase
         Storage::disk(config('filesystems.default'))->assertExists('assets/stock/pixabay/111.jpg');
     }
 
+    public function test_it_skips_a_hit_whose_tags_share_nothing_with_the_query_and_uses_the_next_one(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'pixabay.com/api/*' => Http::response([
+                'hits' => [
+                    // Real bug reproduction: Pixabay's own top hit for "Epictetus
+                    // statue" was a Buddha statue tagged with nothing related.
+                    [
+                        'id' => 378137,
+                        'tags' => 'buddha, statue, moss, buddha purnima, sculpture, japan, buddhism',
+                        'largeImageURL' => 'https://cdn.pixabay.test/378137.jpg',
+                        'imageWidth' => 1080,
+                        'imageHeight' => 1920,
+                    ],
+                    [
+                        'id' => 999,
+                        'tags' => 'epictetus, stoic philosopher, ancient greek bust',
+                        'largeImageURL' => 'https://cdn.pixabay.test/999.jpg',
+                        'imageWidth' => 1080,
+                        'imageHeight' => 1920,
+                    ],
+                ],
+            ], 200),
+            'cdn.pixabay.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = new PixabayAssetProvider;
+        $results = $provider->search('Epictetus statue', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame('assets/stock/pixabay/999.jpg', $results[0]->path);
+        Storage::disk(config('filesystems.default'))->assertMissing('assets/stock/pixabay/378137.jpg');
+    }
+
+    public function test_it_stores_the_providers_real_tags_not_the_search_query(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'pixabay.com/api/*' => Http::response([
+                'hits' => [
+                    [
+                        'id' => 111,
+                        'tags' => 'epictetus, marble, sculpture',
+                        'largeImageURL' => 'https://cdn.pixabay.test/111.jpg',
+                        'imageWidth' => 1080,
+                        'imageHeight' => 1920,
+                    ],
+                ],
+            ], 200),
+            'cdn.pixabay.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        // Query shares "epictetus" with the hit's real tags so it clears the
+        // relevance filter added in this task; the assertion below is what
+        // this test actually exercises — that metadata.tags stores the
+        // provider's own tags, not the tokenized search query.
+        $provider = new PixabayAssetProvider;
+        $results = $provider->search('epictetus statue', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame(['epictetus', 'marble', 'sculpture'], $results[0]->metadata['tags']);
+    }
+
     public function test_it_searches_the_video_endpoint_when_a_video_type_is_requested(): void
     {
         $this->configure();

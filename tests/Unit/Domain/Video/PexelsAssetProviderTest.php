@@ -53,6 +53,72 @@ class PexelsAssetProviderTest extends TestCase
         });
     }
 
+    public function test_it_skips_a_hit_whose_alt_text_shares_nothing_with_the_query_and_uses_the_next_one(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'api.pexels.com/v1/search*' => Http::response([
+                'photos' => [
+                    [
+                        'id' => 333,
+                        'alt' => 'A red sports car parked on a city street at night.',
+                        'width' => 1080,
+                        'height' => 1920,
+                        'src' => ['original' => 'https://cdn.pexels.test/333.jpg'],
+                    ],
+                    [
+                        'id' => 555,
+                        'alt' => 'Detailed close-up of an ancient Greek-style stone statue.',
+                        'width' => 1080,
+                        'height' => 1920,
+                        'src' => ['original' => 'https://cdn.pexels.test/555.jpg'],
+                    ],
+                ],
+            ], 200),
+            'cdn.pexels.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        $provider = new PexelsAssetProvider;
+        $results = $provider->search('ancient statue', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame('assets/stock/pexels/555.jpg', $results[0]->path);
+        Storage::disk(config('filesystems.default'))->assertMissing('assets/stock/pexels/333.jpg');
+    }
+
+    public function test_it_stores_the_providers_real_alt_text_as_tags_not_the_search_query(): void
+    {
+        $this->configure();
+        Storage::fake(config('filesystems.default'));
+
+        Http::fake([
+            'api.pexels.com/v1/search*' => Http::response([
+                'photos' => [
+                    [
+                        'id' => 333,
+                        'alt' => 'Bust of Marcus Aurelius on exhibit',
+                        'width' => 1080,
+                        'height' => 1920,
+                        'src' => ['original' => 'https://cdn.pexels.test/333.jpg'],
+                    ],
+                ],
+            ], 200),
+            'cdn.pexels.test/*' => Http::response('fake-jpg-bytes', 200),
+        ]);
+
+        // Query shares "aurelius" with the hit's real alt text so it clears
+        // the relevance filter added in this task; the assertion below is
+        // what this test actually exercises — that metadata.tags stores the
+        // provider's own alt text, not the tokenized search query.
+        $provider = new PexelsAssetProvider;
+        $results = $provider->search('aurelius statue', new AssetSearchOptions(types: [MediaAssetType::Image]));
+
+        $this->assertCount(1, $results);
+        $this->assertSame(['bust', 'of', 'marcus', 'aurelius', 'on', 'exhibit'], $results[0]->metadata['tags']);
+    }
+
     public function test_it_picks_the_largest_video_file_when_a_video_type_is_requested(): void
     {
         $this->configure();

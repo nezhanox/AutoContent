@@ -53,6 +53,10 @@ final class PixabayAssetProvider implements AssetProviderInterface
         $assets = [];
 
         foreach ($hits as $hit) {
+            if (! $this->isRelevant($query, $hit['description'])) {
+                continue;
+            }
+
             $asset = $this->ingest(
                 provider: 'pixabay',
                 externalId: (string) $hit['id'],
@@ -63,6 +67,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
                 height: $hit['height'],
                 duration: $hit['duration'] ?? null,
                 query: $query,
+                description: $hit['description'],
             );
 
             if ($asset === null || in_array($asset->id, $options->excludeAssetIds, true)) {
@@ -80,7 +85,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
     }
 
     /**
-     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int}>
+     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, description: string}>
      */
     private function searchPhotos(string $query, int $maxResults): array
     {
@@ -108,6 +113,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
                     'extension' => 'jpg',
                     'width' => $hit['imageWidth'] ?? 0,
                     'height' => $hit['imageHeight'] ?? 0,
+                    'description' => $hit['tags'] ?? '',
                 ];
             })
             ->filter()
@@ -116,7 +122,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
     }
 
     /**
-     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, duration: ?int}>
+     * @return array<int, array{id: int, url: string, extension: string, width: int, height: int, duration: ?int, description: string}>
      */
     private function searchVideos(string $query, int $maxResults): array
     {
@@ -156,6 +162,7 @@ final class PixabayAssetProvider implements AssetProviderInterface
                     'width' => $width,
                     'height' => $height,
                     'duration' => isset($hit['duration']) ? (int) $hit['duration'] : null,
+                    'description' => $hit['tags'] ?? '',
                 ];
             })
             ->filter()
