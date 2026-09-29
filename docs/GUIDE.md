@@ -53,6 +53,55 @@ php artisan queue:work --queue=render,whisper,default --tries=3 --timeout=300
 більше не треба (хоча старі окремі кнопки на кожному етапі й далі є, про
 всяк випадок).
 
+## 2b. Нарізка кліпів із YouTube-каналу
+
+Замість генерації з нуля можна брати відео чужого/свого YouTube-каналу і
+нарізати його на вертикальні кліпи з оригінальним звуком та субтитрами
+(мова = мова оригіналу).
+
+**Додати канал:** Filament `/admin/source-channels` (Create) або
+
+```bash
+php artisan source:add https://www.youtube.com/@channel --project=ID --mode=highlights \
+  --target=60 --tolerance=15 --max-clips=3 --min-score=6 \
+  --max-source-minutes=120 --framing=blur_pad
+```
+
+URL має бути `http(s)://` (перевіряється і в команді, і у формі).
+
+**Режими:**
+- `whole` — усе відео як один кліп (без LLM).
+- `fixed` — послідовна нарізка шматками ≈ `target` ± `tolerance` секунд;
+  LLM підбирає межі за змістом. Хвіст коротший за 10 с відкидається.
+- `highlights` — LLM обирає лише найцікавіші моменти: не більше
+  `max-clips`, кожен з оцінкою 1–10 не нижче `min-score`.
+
+`target` — бажана тривалість кліпа (с), `tolerance` — допустиме відхилення,
+`max-source-minutes` — довші вихідні відео пропускаються, `framing` —
+`blur_pad` (розмите тло) або `crop` (обрізка до 9:16).
+
+**Як це працює:** нові відео підхоплює `php artisan source:poll` (scheduler
+запускає його кожні 30 хв; вручну — `--channel=ID`). Потрібні queue-воркери,
+включно з чергою `whisper` (транскрипція). Готові кліпи з'являються в
+**Videos** і чекають ручного Approve.
+
+**Змінні `.env`** (`config/clips.php`): `CLIPS_POLL_INTERVAL_MINUTES` (30),
+`CLIPS_DISCOVER_LIMIT` (5 останніх відео за опитування),
+`CLIPS_WINDOW_MINUTES` (90), `CLIPS_WINDOW_OVERLAP_SECONDS` (60),
+`CLIPS_UTTERANCE_MAX_SECONDS` (15), `CLIPS_UTTERANCE_PAUSE_SECONDS` (0.7),
+`CLIPS_PADDING_SECONDS` (0.15), `CLIPS_SUBTITLE_MAX_WORDS` (6),
+`YT_DLP_BINARY`, `YT_DLP_FORMAT`, `YT_DLP_COOKIES_FILE`, `YT_DLP_TIMEOUT` (3600).
+
+**Обмеження й застереження:**
+- Для довгих відео виставте великий `WHISPER_TIMEOUT` (напр. 3600),
+  дефолт 600 с.
+- `whole` + довге джерело може перевищити timeout `RenderVideoJob` (900 с).
+- YouTube може блокувати завантаження: тоді вкажіть cookies через
+  `YT_DLP_COOKIES_FILE` і тримайте yt-dlp оновленим (`pip install -U yt-dlp`
+  або перебудова worker-образу).
+- Права на чужий контент — відповідальність оператора; система не має
+  ліцензійних перевірок.
+
 ## 3. Дашборд і що робити, якщо щось впало
 
 На сторінці **Videos** з'явилась колонка **Stage** — показує, на якому

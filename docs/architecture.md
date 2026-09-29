@@ -16,6 +16,11 @@
 - **`Video`** — найбільший контекст: сцени, озвучка, асети, субтитри, рендер,
   quality-check. Сервіси в `Video/Services/*`, зовнішні інтеграції в
   `Video/Providers/*`.
+- **`Source`** — YouTube-канали як джерело контенту (Phase 10): вибір кліпів
+  з транскрипту (`ClipSelector`, `ClipValidator`, `ClipMerger`,
+  `TranscriptWindower`, `SubtitleSlicer`), `YoutubeDownloaderInterface` з
+  `YtDlpDownloader` / `FakeYoutubeDownloader`. Моделі: `SourceChannel`,
+  `SourceVideo`, `SourceClip`.
 - **`Publishing`** — публікація відео в соцмережі (`FakeSocialPublisher` —
   реальної інтеграції ще нема, див. `docs/GUIDE.md` розділ "чого поки немає").
 
@@ -70,6 +75,30 @@ flowchart TD
 вручну з `PublicationsTable` (генерує текст підпису для конкретної
 `Publication`, не для `Video`).
 
+### Потік «YouTube-канал → кліпи» (Phase 10)
+
+Окремий ланцюжок Jobs, що закінчується в звичайному хвості пайплайна.
+`source:poll` (scheduler, кожні `clips.poll_interval_minutes` = 30 хв)
+диспатчить `DiscoverSourceVideosJob` для активних `SourceChannel`.
+
+```mermaid
+flowchart TD
+    P[source:poll / scheduler] --> A[DiscoverSourceVideosJob]
+    A -->|нові SourceVideo| B[DownloadSourceVideoJob<br/>yt-dlp]
+    B --> C[TranscribeSourceVideoJob<br/>черга whisper]
+    C -->|transcript: language, segments, utterances| D[SelectClipsJob<br/>ClipSelector + LLM]
+    D -->|SourceClip[]| E[CreateClipVideosJob]
+    E -->|Video + 1 VideoScene + Subtitle| F[RenderVideoJob<br/>SourceClipRenderer]
+    F --> G[QualityCheckVideoJob]
+    G --> H((ручний Approve))
+```
+
+Кліп — звичайний `Video` з одним `VideoScene` і `source_clip_id`; у нього
+`idea`/`script` = `null` і **немає озвучки** (звук — оригінальний зі
+джерела). Субтитри йдуть з `transcript.segments`, поділених
+`SubtitleSlicer`. `RenderVideoJob` для відео з `source_clip_id` бере
+`SourceClipRenderer` замість стандартного рендерера; quality-check без змін.
+
 ## 3. Provider-чейни
 
 Зовнішні джерела для одного й того ж запиту пробуються по черзі, поки
@@ -81,7 +110,13 @@ flowchart TD
 | B-roll асети | `ChainedAssetProvider` | `config('assets.chain')` = `[wikimedia, pixabay, pexels, local]` | Wikimedia йде першим — єдине джерело класичного мистецтва для історичних/філософських сцен; далі комерційні stock, і `local`-медіатека як фолбек |
 | LLM | `LlmManager::resolve()` | `providerOverride` → налаштування каналу (`purpose`) → дефолт каналу → `config('llm.default_provider')` | `openai`, `deepseek`, `anthropic`, `fake` (тести) |
 
-Кожен провайдер має `Fake*`-двійник (`FakeAssetProvider`, `FakeLlmProvider`,
+Поза чейнами: `SourceClipRenderer` (`Video/Providers`) — ffmpeg-рендерер
+кліпа з завантаженого джерела (вирізка `-ss/-to`, blur-pad або crop до 9:16,
+`loudnorm`, вигорілі ASS-субтитри); резолвиться через `app()` в
+`RenderVideoJob`, без біндингу. `YoutubeDownloaderInterface` →
+`YtDlpDownloader` (`config/clips.php`: бінарник, формат, cookies, timeout).
+
+Кожен провайдер має `Fake*`-двійник (`FakeYoutubeDownloader`, `FakeAssetProvider`, `FakeLlmProvider`,
 `FakeTtsProvider`, `FakeTranscriptionProvider`, `FakeVideoRenderer`,
 `FakeVideoQualityChecker`, `FakeAudioProbe`, `FakeSocialPublisher`) — саме
 вони підставляються в тестах (`Http::preventStrayRequests()` +

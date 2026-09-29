@@ -8,6 +8,14 @@ Laravel 12 / PHP 8.4 застосунок, що генерує faceless коро
 див. `docs/superpowers/specs/2026-09-22-phase7-console-admin-design.md`).
 Обидві живуть паралельно, поки Console не наздожене паритет.
 
+**YouTube-канали → кліпи (Phase 10):** `SourceChannel` реєструється через
+Filament (`/admin/source-channels`) або `php artisan source:add <url>
+--project=ID`; `source:poll` (scheduler, 30 хв) знаходить нові відео, ланцюжок
+jobs завантажує (yt-dlp, є в worker-образі), транскрибує, обирає кліпи через
+LLM і рендерить 9:16 з оригінальним звуком і субтитрами. Домен —
+`app/Domain/Source/`; спека `docs/superpowers/specs/2026-09-29-phase10-youtube-channel-clips-design.md`,
+план `docs/superpowers/plans/2026-09-29-phase10-youtube-channel-clips.md`.
+
 Деталі, які не варто тримати тут (щоб файл лишався коротким):
 
 - **Архітектура, доменна модель, pipeline, provider-чейни** → `docs/architecture.md`
@@ -39,7 +47,7 @@ php artisan queue:work --queue=render,whisper,default --tries=3 --timeout=300
 
 ## Ключові конвенції
 
-- **Доменний код живе в `app/Domain/{Content,Llm,Publishing,Video}/`**, не в
+- **Доменний код живе в `app/Domain/{Content,Llm,Publishing,Source,Video}/`**, не в
   `app/Http` чи `app/Filament` — контролери/Filament-ресурси лише тонкий шар
   над доменними сервісами.
 - **Кожен зовнішній інтеграційний клас має `Fake*`-двійник** (`FakeLlmProvider`,

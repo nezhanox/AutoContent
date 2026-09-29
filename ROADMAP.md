@@ -854,6 +854,21 @@ Whisper-транскрипт (мова визначена коректно як 
 Spec: `docs/superpowers/specs/2026-09-24-phase9b-reference-video-design.md`
 Plan: `docs/superpowers/plans/2026-09-24-phase9b-reference-video.md`
 
+### Phase 10 (YouTube clips) — YouTube-канали → нарізка кліпів ✅ завершено (2026-09-29)
+
+Не плутати з backlog-пунктом «Phase 10 — Автономне виконання задач» нижче
+(лишається не початим): гілка `phase10-youtube-clips` реалізує окремий
+запит. `SourceChannel` (Filament `/admin/source-channels` + `source:add`) →
+`source:poll` (scheduler, 30 хв) → Discover → Download (yt-dlp) →
+Transcribe (Whisper) → SelectClips (LLM; режими `whole|fixed|highlights`) →
+CreateClipVideos → `SourceClipRenderer` (9:16, blur-pad/crop, оригінальний
+звук, вигорілі субтитри) → quality check → ручний Approve. Новий bounded
+context `app/Domain/Source/`, yt-dlp у worker-образі. Консольного UI каналів,
+перекладу субтитрів і ліцензування свідомо немає.
+
+Spec: `docs/superpowers/specs/2026-09-29-phase10-youtube-channel-clips-design.md`
+Plan: `docs/superpowers/plans/2026-09-29-phase10-youtube-channel-clips.md`
+
 ### Phase 10 — Автономне виконання задач
 
 Мета: режим, у якому користувач описує задуми пунктами, я сам беру їх у
