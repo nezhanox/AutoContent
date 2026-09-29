@@ -121,6 +121,39 @@ class SourceClipRendererTest extends TestCase
         });
     }
 
+    public function test_it_burns_lower_third_subtitles_with_the_bundled_clip_font(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        $captured = [];
+        Process::fake(function ($process) use (&$captured) {
+            $command = $process->command;
+            if (in_array('-show_streams', $command, true)) {
+                return Process::result(output: json_encode([
+                    'format' => ['duration' => '60.00'],
+                    'streams' => [['codec_type' => 'video', 'width' => 1080, 'height' => 1920], ['codec_type' => 'audio']],
+                ]));
+            }
+            if (in_array('-filter_complex', $command, true)) {
+                $filter = $command[array_search('-filter_complex', $command, true) + 1];
+                preg_match('/ass=(.+?)\\.ass:fontsdir=/', $filter, $m);
+                $captured['filter'] = $filter;
+                $captured['ass'] = file_get_contents(str_replace('\\\\', '\\', $m[1]).'.ass');
+                file_put_contents(end($command), 'fake-video-bytes');
+            }
+
+            return Process::result(output: '');
+        });
+
+        (new SourceClipRenderer)->render($this->buildVideo());
+
+        $style = config('clips.subtitles');
+        $this->assertStringContainsString("Style: Default,{$style['font']},{$style['font_size']},", $captured['ass']);
+        $this->assertMatchesRegularExpression('/,0,1,\d+,\d+,2,\d+,\d+,'.$style['margin_v'].'\n/', $captured['ass']);
+        $this->assertStringContainsString(':fontsdir=', $captured['filter']);
+        $this->assertFileExists(config('clips.fonts_dir').'/Poppins-ExtraBold.ttf');
+        $this->assertFileExists(config('clips.fonts_dir').'/OFL.txt');
+    }
+
     public function test_it_renders_crop_framing_without_blur(): void
     {
         Storage::fake(config('filesystems.default'));

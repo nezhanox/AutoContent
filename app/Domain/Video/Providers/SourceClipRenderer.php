@@ -50,11 +50,11 @@ final class SourceClipRenderer implements VideoRendererInterface
             $assPath = "{$workDir}/subtitles.ass";
             File::put($assPath, AssSubtitleFormatter::format(
                 $video->subtitle->metadata['segments'] ?? [],
-                [...config('render.subtitles'), 'width' => $width, 'height' => $height],
+                [...config('render.subtitles'), ...config('clips.subtitles'), 'width' => $width, 'height' => $height],
             ));
 
             $duration = $clip->end - $clip->start;
-            $ass = $this->escapeForFilter($assPath);
+            $ass = $this->escapeForFilter($assPath).':fontsdir='.$this->escapeForFilter((string) config('clips.fonts_dir'));
 
             $videoFilter = $framing === SourceChannelFraming::Crop
                 ? "[0:v]scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,fps={$fps},ass={$ass}[v]"

@@ -86,6 +86,15 @@ LLM обирає лише момент; межі кліпа код підган�
 `max-source-minutes` — довші вихідні відео пропускаються, `framing` —
 `blur_pad` (розмите тло) або `crop` (обрізка до 9:16).
 
+**Субтитри кліпів** мають власний стиль (окремо від звичайних відео): шрифт
+Poppins ExtraBold і нижня третина кадру (під центральною картинкою, а не
+поверх обличчя). Налаштовується через `CLIPS_SUBTITLE_FONT`,
+`CLIPS_SUBTITLE_FONT_SIZE`, `CLIPS_SUBTITLE_MARGIN_V`, `CLIPS_SUBTITLE_MARGIN_H`,
+`CLIPS_SUBTITLE_OUTLINE_WIDTH`, `CLIPS_SUBTITLE_SHADOW_WIDTH`,
+`CLIPS_SUBTITLE_MAX_WORDS`; каталог шрифтів — `CLIPS_FONTS_DIR`. Шрифт лежить у
+`resources/fonts` (ліцензія OFL) і підключається через `fontsdir`, тож
+системний шрифт встановлювати не треба.
+
 **Як це працює:** нові відео підхоплює `php artisan source:poll` (scheduler
 запускає його кожні 30 хв; вручну — `--channel=ID`). У docker-compose
 немає сервісу `schedule:work`, тож для автоматичного опитування треба

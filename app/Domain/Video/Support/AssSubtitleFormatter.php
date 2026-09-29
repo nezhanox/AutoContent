@@ -18,15 +18,17 @@ final class AssSubtitleFormatter
 
         $outlineWidth = $style['outline_width'] ?? 2;
         $shadowWidth = $style['shadow_width'] ?? 0;
+        $bold = ($style['bold'] ?? true) ? -1 : 0;
 
         $header = "[Script Info]\nScriptType: v4.00+\nPlayResX: {$style['width']}\nPlayResY: {$style['height']}\n\n"
             ."[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, Bold, BorderStyle, Outline, "
             ."Shadow, Alignment, MarginL, MarginR, MarginV\n"
             ."Style: Default,{$style['font']},{$style['font_size']},{$style['primary_colour']},{$style['outline_colour']},"
-            // Bold=-1 (ASS boolean true) and BorderStyle=1 (outline+drop shadow,
+            // Bold=-1 (ASS boolean true, `bold` style key; 0 for families that
+            // already ship a heavy static weight) and BorderStyle=1 (outline+drop shadow,
             // not an opaque box) keep every word legible over a busy photo
             // without hiding the photo behind a solid caption background.
-            ."-1,1,{$outlineWidth},{$shadowWidth},"
+            ."{$bold},1,{$outlineWidth},{$shadowWidth},"
             ."{$alignment},{$style['margin_h']},{$style['margin_h']},{$style['margin_v']}\n\n"
             ."[Events]\nFormat: Layer, Start, End, Style, Text\n";
 

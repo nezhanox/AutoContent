@@ -22,6 +22,12 @@ class AssSubtitleFormatterTest extends TestCase
         ], $overrides);
     }
 
+    public function test_bold_flag_defaults_to_on_and_can_be_turned_off(): void
+    {
+        $this->assertStringContainsString(',&H00000000,-1,1,', AssSubtitleFormatter::format([], $this->style()));
+        $this->assertStringContainsString(',&H00000000,0,1,', AssSubtitleFormatter::format([], $this->style(['bold' => false])));
+    }
+
     public function test_it_writes_the_script_info_and_style_header(): void
     {
         $ass = AssSubtitleFormatter::format([], $this->style());
