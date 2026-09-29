@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Resources\Videos\Pages\EditVideo;
+use App\Filament\Resources\Videos\Pages\ListVideos;
 use App\Filament\Resources\Videos\Pages\ViewVideo;
 use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoSceneType;
 use App\Models\MediaAsset;
 use App\Models\Script;
+use App\Models\SourceClip;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -31,6 +34,29 @@ class VideoViewPageTest extends TestCase
             ->assertSuccessful()
             ->assertSchemaStateSet(['script_preview' => 'This is the narration text.'])
             ->assertSee('This is the narration text.', escape: true, stripInitialData: false);
+    }
+
+    public function test_the_view_page_and_edit_form_work_for_a_clip_video_without_idea_or_script(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $video = Video::factory()->create([
+            'content_idea_id' => null,
+            'script_id' => null,
+            'source_clip_id' => SourceClip::factory()->create()->id,
+        ]);
+
+        Livewire::test(ViewVideo::class, ['record' => $video->getRouteKey()])
+            ->assertSuccessful();
+
+        Livewire::test(ListVideos::class)
+            ->assertSuccessful()
+            ->assertCanSeeTableRecords([$video]);
+
+        Livewire::test(EditVideo::class, ['record' => $video->getRouteKey()])
+            ->assertSuccessful()
+            ->call('save')
+            ->assertHasNoFormErrors(['content_idea_id', 'script_id']);
     }
 
     public function test_the_view_page_shows_the_scenes_and_subtitles(): void

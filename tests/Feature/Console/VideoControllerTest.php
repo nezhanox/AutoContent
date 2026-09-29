@@ -13,6 +13,7 @@ use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
 use App\Models\Script;
+use App\Models\SourceClip;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -146,6 +147,33 @@ class VideoControllerTest extends TestCase
                 ->where('video.musicAssetLabel', null)
                 ->where('video.subtitlesText', null)
                 ->has('video.scenes', 0)
+            );
+    }
+
+    public function test_index_and_show_handle_a_clip_video_without_idea_or_script(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $video = Video::factory()->create([
+            'content_idea_id' => null,
+            'script_id' => null,
+            'source_clip_id' => SourceClip::factory()->create()->id,
+        ]);
+
+        $this->get('/console/videos')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Videos/Index')
+                ->has('videos', 1)
+                ->where('videos.0.idea', null)
+            );
+
+        $this->get("/console/videos/{$video->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Videos/Show')
+                ->where('video.idea', null)
+                ->where('video.scriptText', null)
             );
     }
 

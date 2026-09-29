@@ -3,6 +3,7 @@
 namespace Tests\Feature\Jobs;
 
 use App\Domain\Video\Providers\FakeVideoRenderer;
+use App\Domain\Video\Providers\SourceClipRenderer;
 use App\Domain\Video\RenderResult;
 use App\Domain\Video\VideoRendererInterface;
 use App\Jobs\QualityCheckVideoJob;
@@ -12,6 +13,7 @@ use App\Models\Enums\MediaAssetType;
 use App\Models\Enums\VideoSceneType;
 use App\Models\Enums\VideoStatus;
 use App\Models\MediaAsset;
+use App\Models\SourceClip;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoScene;
@@ -175,6 +177,53 @@ class RenderVideoJobTest extends TestCase
 
         $this->assertSame(VideoStatus::AssetsReady, $video->fresh()->status);
         $this->assertNull($video->fresh()->file_path);
+    }
+
+    private function clipVideoReadyForRendering(): Video
+    {
+        $project = ContentProject::factory()->create();
+        $clip = SourceClip::factory()->create();
+        $video = Video::factory()->create([
+            'content_project_id' => $project->id,
+            'content_idea_id' => null,
+            'script_id' => null,
+            'source_clip_id' => $clip->id,
+            'status' => VideoStatus::AssetsReady,
+        ]);
+        VideoScene::factory()->create(['video_id' => $video->id, 'asset_id' => null, 'visual_query' => null]);
+        $subtitle = MediaAsset::factory()->create(['type' => MediaAssetType::Subtitle]);
+        $video->update(['subtitle_id' => $subtitle->id]);
+
+        return $video;
+    }
+
+    public function test_it_renders_a_clip_video_with_the_source_clip_renderer_and_without_a_voiceover(): void
+    {
+        $this->bindFakeRenderer();
+        // SourceClipRenderer is final: stand in for it with a fake registered under its class name.
+        $clipRenderer = (new FakeVideoRenderer)->respondWith(new RenderResult(path: 'clips/out.mp4', duration: 30.2, width: 1080, height: 1920));
+        $this->app->instance(SourceClipRenderer::class, $clipRenderer);
+
+        $video = $this->clipVideoReadyForRendering();
+
+        app()->call([new RenderVideoJob($video->id), 'handle']);
+
+        $fresh = $video->fresh();
+        $this->assertSame(VideoStatus::Rendered, $fresh->status);
+        $this->assertSame('clips/out.mp4', $fresh->file_path);
+        Queue::assertPushed(QualityCheckVideoJob::class, fn (QualityCheckVideoJob $job) => $job->videoId === $video->id);
+    }
+
+    public function test_it_uses_the_injected_renderer_for_a_regular_video(): void
+    {
+        $this->bindFakeRenderer(new RenderResult(path: 'projects/1/renders/1.mp4', duration: 5, width: 1080, height: 1920));
+        $this->app->instance(SourceClipRenderer::class, (new FakeVideoRenderer)->respondWith(new RenderResult(path: 'clips/WRONG.mp4', duration: 5, width: 1, height: 1)));
+
+        $video = $this->videoReadyForRendering();
+
+        app()->call([new RenderVideoJob($video->id), 'handle']);
+
+        $this->assertSame('projects/1/renders/1.mp4', $video->fresh()->file_path);
     }
 
     public function test_failed_marks_the_video_failed_and_sends_a_notification(): void

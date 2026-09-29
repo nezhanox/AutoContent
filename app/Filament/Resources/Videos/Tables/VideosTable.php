@@ -147,7 +147,7 @@ class VideosTable
                         ]);
 
                         match ($stage) {
-                            'scenes' => GenerateScenesJob::dispatch($record->script_id),
+                            'scenes' => $record->script_id !== null ? GenerateScenesJob::dispatch($record->script_id) : null,
                             'voiceover' => GenerateVoiceoverJob::dispatch($record->id),
                             'assets' => CollectVideoAssetsJob::dispatch($record->id),
                             'subtitles' => GenerateSubtitlesJob::dispatch($record->id),

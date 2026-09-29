@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Domain\Video\Providers\SourceClipRenderer;
 use App\Domain\Video\VideoRendererInterface;
 use App\Jobs\Concerns\NotifiesOnPermanentFailure;
 use App\Models\Enums\VideoStatus;
@@ -45,7 +46,7 @@ class RenderVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(VideoRendererInterface $renderer): void
     {
-        $video = Video::with(['scenes.asset', 'voiceover', 'subtitle', 'musicAsset'])->findOrFail($this->videoId);
+        $video = Video::with(['scenes.asset', 'voiceover', 'subtitle', 'musicAsset', 'sourceClip.sourceVideo.sourceChannel'])->findOrFail($this->videoId);
 
         // CollectVideoAssetsService only ever leaves asset_id null for a scene
         // whose visual_query was blank (it skips those on purpose — see its
@@ -60,8 +61,14 @@ class RenderVideoJob implements ShouldBeUnique, ShouldQueue
             );
 
         if ($video->status !== VideoStatus::AssetsReady || $video->subtitle_id === null
-            || $video->voiceover === null || ! $scenesReady) {
+            || ($video->voiceover === null && $video->source_clip_id === null) || ! $scenesReady) {
             return;
+        }
+
+        // Clips cut from a source video use their own renderer; everything else
+        // renders through the injected one.
+        if ($video->source_clip_id !== null) {
+            $renderer = app(SourceClipRenderer::class);
         }
 
         $video->update(['status' => VideoStatus::Rendering]);

@@ -25,10 +25,10 @@ class VideoForm
                     ->required(),
                 Select::make('content_idea_id')
                     ->relationship('contentIdea', 'title')
-                    ->required(),
+                    ->required(fn (?Video $record): bool => $record?->source_clip_id === null),
                 Select::make('script_id')
                     ->relationship('script', 'id')
-                    ->required(),
+                    ->required(fn (?Video $record): bool => $record?->source_clip_id === null),
                 TextInput::make('title')
                     ->required(),
                 Textarea::make('description')

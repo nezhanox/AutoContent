@@ -131,7 +131,7 @@ class VideoController extends Controller
         ]);
 
         match ($stage) {
-            'scenes' => GenerateScenesJob::dispatch($video->script_id),
+            'scenes' => $video->script_id !== null ? GenerateScenesJob::dispatch($video->script_id) : null,
             'voiceover' => GenerateVoiceoverJob::dispatch($video->id),
             'assets' => CollectVideoAssetsJob::dispatch($video->id),
             'subtitles' => GenerateSubtitlesJob::dispatch($video->id),
