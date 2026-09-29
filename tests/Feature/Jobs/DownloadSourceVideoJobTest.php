@@ -11,6 +11,7 @@ use App\Models\SourceChannel;
 use App\Models\SourceVideo;
 use App\Models\User;
 use App\Notifications\PipelineJobFailedNotification;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
@@ -133,5 +134,28 @@ class DownloadSourceVideoJobTest extends TestCase
             PipelineJobFailedNotification::class,
             fn (PipelineJobFailedNotification $n): bool => $n->context['source_video_id'] === $video->id
         );
+    }
+
+    public function test_it_runs_on_the_worker_only_source_queue(): void
+    {
+        $this->assertSame('source', (new DownloadSourceVideoJob(1))->queue);
+    }
+
+    public function test_it_throws_when_the_storage_write_fails(): void
+    {
+        $video = $this->makeVideo();
+        $disk = \Mockery::mock(Filesystem::class);
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        Storage::shouldReceive('disk')->andReturn($disk);
+
+        try {
+            app()->call([new DownloadSourceVideoJob($video->id), 'handle']);
+            $this->fail('Expected a RuntimeException.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Failed to store', $e->getMessage());
+        }
+
+        $this->assertNull($video->fresh()->file_path);
+        Queue::assertNothingPushed();
     }
 }

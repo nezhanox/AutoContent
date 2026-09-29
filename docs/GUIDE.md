@@ -20,7 +20,7 @@ php artisan serve --port=8080
 
 # Черга — ОБОВ'ЯЗКОВО перезапускати після будь-якої зміни коду
 # (Laravel-воркер не перезавантажує PHP-класи на льоту)
-php artisan queue:work --queue=render,whisper,default --tries=3 --timeout=300
+php artisan queue:work --queue=render,whisper,default,source --tries=3 --timeout=300
 ```
 
 Дефолтний логін (з сідера `DatabaseSeeder`): **admin@autocontent.test / password**.
@@ -81,8 +81,11 @@ URL має бути `http(s)://` (перевіряється і в команд�
 `blur_pad` (розмите тло) або `crop` (обрізка до 9:16).
 
 **Як це працює:** нові відео підхоплює `php artisan source:poll` (scheduler
-запускає його кожні 30 хв; вручну — `--channel=ID`). Потрібні queue-воркери,
-включно з чергою `whisper` (транскрипція). Готові кліпи з'являються в
+запускає його кожні 30 хв; вручну — `--channel=ID`). У docker-compose
+немає сервісу `schedule:work`, тож для автоматичного опитування треба
+запустити `php artisan schedule:work` (або cron з `schedule:run`). Потрібні
+queue-воркери, включно з чергами `whisper` (транскрипція) і `source`
+(yt-dlp/ffprobe). Готові кліпи з'являються в
 **Videos** і чекають ручного Approve.
 
 **Змінні `.env`** (`config/clips.php`): `CLIPS_POLL_INTERVAL_MINUTES` (30),
@@ -90,12 +93,24 @@ URL має бути `http(s)://` (перевіряється і в команд�
 `CLIPS_WINDOW_MINUTES` (90), `CLIPS_WINDOW_OVERLAP_SECONDS` (60),
 `CLIPS_UTTERANCE_MAX_SECONDS` (15), `CLIPS_UTTERANCE_PAUSE_SECONDS` (0.7),
 `CLIPS_PADDING_SECONDS` (0.15), `CLIPS_SUBTITLE_MAX_WORDS` (6),
-`YT_DLP_BINARY`, `YT_DLP_FORMAT`, `YT_DLP_COOKIES_FILE`, `YT_DLP_TIMEOUT` (3600).
+`CLIPS_MAX_OUTPUT_TOKENS` (8192, ліміт вихідних токенів LLM на вікно),
+`YT_DLP_BINARY`, `YT_DLP_FORMAT`, `YT_DLP_COOKIES_FILE`, `YT_DLP_TIMEOUT` (3600),
+`YT_DLP_LIST_TIMEOUT` (120, для списку відео каналу).
 
 **Обмеження й застереження:**
 - Для довгих відео виставте великий `WHISPER_TIMEOUT` (напр. 3600),
   дефолт 600 с.
-- `whole` + довге джерело може перевищити timeout `RenderVideoJob` (900 с).
+- `whole` + довге джерело може перевищити timeout `RenderVideoJob` (900 с);
+  quality-check масштабує таймаут ffprobe/blackdetect від тривалості відео,
+  але дуже довгі джерела (години) все одно краще різати на кліпи (`fixed`).
+- Черга `source` (завантаження yt-dlp і ffprobe джерела) — **лише для
+  worker-образу**: тільки в ньому встановлені yt-dlp/ffmpeg, а Horizon-образ
+  їх не має, тому ці job'и не можна класти в `default`.
+- `REDIS_QUEUE_RETRY_AFTER` тепер 3900 с (має бути вищим за найдовший `$timeout`
+  job'а: завантаження/транскрипція = 3700 с). Компроміс: job, що впав жорстко
+  (kill -9, OOM) на будь-якій черзі, буде перевидано лише через ~65 хв.
+  `$timeout` будь-якого job'а має лишатись меншим за `retry_after`, інакше
+  ще виконуваний job буде продубльовано.
 - YouTube може блокувати завантаження: тоді вкажіть cookies через
   `YT_DLP_COOKIES_FILE` і тримайте yt-dlp оновленим (`pip install -U yt-dlp`
   або перебудова worker-образу).

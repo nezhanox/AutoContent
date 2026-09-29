@@ -28,7 +28,7 @@ class DownloadSourceVideoJob implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public readonly int $sourceVideoId)
     {
-        $this->onQueue('default');
+        $this->onQueue('source');
     }
 
     public function uniqueId(): string
@@ -81,11 +81,15 @@ class DownloadSourceVideoJob implements ShouldBeUnique, ShouldQueue
             $path = "source/{$video->source_channel_id}/{$video->youtube_id}.mp4";
             $stream = fopen($tmp, 'rb');
             try {
-                Storage::disk(config('filesystems.default'))->put($path, $stream);
+                $stored = Storage::disk(config('filesystems.default'))->put($path, $stream);
             } finally {
                 if (is_resource($stream)) {
                     fclose($stream);
                 }
+            }
+
+            if ($stored === false) {
+                throw new RuntimeException("Failed to store downloaded source video at [{$path}].");
             }
         } finally {
             if (file_exists($tmp)) {

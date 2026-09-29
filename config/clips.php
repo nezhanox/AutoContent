@@ -12,5 +12,7 @@ return [
     'yt_dlp_binary' => env('YT_DLP_BINARY', 'yt-dlp'),
     'yt_dlp_format' => env('YT_DLP_FORMAT', 'bv*[height<=1080]+ba/b[height<=1080]'),
     'yt_dlp_cookies_file' => env('YT_DLP_COOKIES_FILE'),
+    'max_output_tokens' => (int) env('CLIPS_MAX_OUTPUT_TOKENS', 8192),
     'yt_dlp_timeout' => (int) env('YT_DLP_TIMEOUT', 3600),
+    'yt_dlp_list_timeout' => (int) env('YT_DLP_LIST_TIMEOUT', 120),
 ];

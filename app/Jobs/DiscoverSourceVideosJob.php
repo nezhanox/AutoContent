@@ -17,11 +17,13 @@ class DiscoverSourceVideosJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
+    public int $timeout = 300;
+
     public int $tries = 2;
 
     public function __construct(public readonly int $channelId)
     {
-        $this->onQueue('default');
+        $this->onQueue('source');
     }
 
     public function handle(YoutubeDownloaderInterface $downloader): void

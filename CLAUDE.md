@@ -42,7 +42,7 @@ http://localhost:8080/console/login (сідер: `admin@autocontent.test` /
 Laravel worker не перезавантажує PHP-класи на льоту:
 
 ```bash
-php artisan queue:work --queue=render,whisper,default --tries=3 --timeout=300
+php artisan queue:work --queue=render,whisper,default,source --tries=3 --timeout=300
 ```
 
 ## Ключові конвенції

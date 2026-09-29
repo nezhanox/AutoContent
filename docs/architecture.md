@@ -87,7 +87,7 @@ flowchart TD
     A -->|нові SourceVideo| B[DownloadSourceVideoJob<br/>yt-dlp]
     B --> C[TranscribeSourceVideoJob<br/>черга whisper]
     C -->|transcript: language, segments, utterances| D[SelectClipsJob<br/>ClipSelector + LLM]
-    D -->|SourceClip[]| E[CreateClipVideosJob]
+    D -->|"SourceClip[]"| E[CreateClipVideosJob]
     E -->|Video + 1 VideoScene + Subtitle| F[RenderVideoJob<br/>SourceClipRenderer]
     F --> G[QualityCheckVideoJob]
     G --> H((ручний Approve))
@@ -111,7 +111,7 @@ flowchart TD
 | LLM | `LlmManager::resolve()` | `providerOverride` → налаштування каналу (`purpose`) → дефолт каналу → `config('llm.default_provider')` | `openai`, `deepseek`, `anthropic`, `fake` (тести) |
 
 Поза чейнами: `SourceClipRenderer` (`Video/Providers`) — ffmpeg-рендерер
-кліпа з завантаженого джерела (вирізка `-ss/-to`, blur-pad або crop до 9:16,
+кліпа з завантаженого джерела (вирізка `-ss` перед `-i` + `-t`, blur-pad або crop до 9:16,
 `loudnorm`, вигорілі ASS-субтитри); резолвиться через `app()` в
 `RenderVideoJob`, без біндингу. `YoutubeDownloaderInterface` →
 `YtDlpDownloader` (`config/clips.php`: бінарник, формат, cookies, timeout).

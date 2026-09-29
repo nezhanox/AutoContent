@@ -81,4 +81,12 @@ class DiscoverSourceVideosJobTest extends TestCase
         $this->assertNull($channel->fresh()->last_checked_at);
         Queue::assertNothingPushed();
     }
+
+    public function test_it_runs_on_the_worker_only_source_queue_with_a_timeout(): void
+    {
+        $job = new DiscoverSourceVideosJob(1);
+
+        $this->assertSame('source', $job->queue);
+        $this->assertSame(300, $job->timeout);
+    }
 }
