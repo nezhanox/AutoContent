@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('metrics:collect')
             ->hourly()
             ->withoutOverlapping();
+
+        $schedule->command('source:poll')
+            ->cron('*/'.config('clips.poll_interval_minutes', 30).' * * * *')
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         //
