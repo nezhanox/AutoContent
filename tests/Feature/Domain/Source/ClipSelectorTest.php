@@ -204,4 +204,59 @@ class ClipSelectorTest extends TestCase
         $this->assertCount(2, $llm->captured);
         $this->assertStringContainsString('truncated', end($llm->captured[1])['content']);
     }
+
+    private function capturedPrompts(SourceChannelMode $mode, ?array $transcript): array
+    {
+        $channel = $this->channel($mode, 60, 15);
+        $video = SourceVideo::factory()->create(['source_channel_id' => $channel->id, 'transcript' => $transcript]);
+        $clips = $mode === SourceChannelMode::Fixed ? [$this->clipJson(1, 6), $this->clipJson(7, 12)] : [$this->clipJson(3, 8)];
+        $llm = new QueuedLlmManager([json_encode(['clips' => $clips])]);
+
+        $this->selector($llm)->select($channel, $video, $this->utterances(12));
+
+        return [$llm->captured[0][0]['content'], $llm->captured[0][1]['content']];
+    }
+
+    public function test_prompt_states_english_language_explicitly(): void
+    {
+        [$system, $user] = $this->capturedPrompts(SourceChannelMode::Highlights, ['language' => 'en']);
+
+        $this->assertStringContainsString('in English (the transcript language). Do not use any other language.', $system);
+        $this->assertStringEndsWith('title/hook/reason must be in English.', $user);
+    }
+
+    public function test_prompt_maps_ukrainian_code_in_fixed_mode(): void
+    {
+        [$system, $user] = $this->capturedPrompts(SourceChannelMode::Fixed, ['language' => 'uk']);
+
+        $this->assertStringContainsString('Ukrainian', $system);
+        $this->assertStringContainsString('Ukrainian', $user);
+    }
+
+    public function test_prompt_falls_back_to_unknown_language_code(): void
+    {
+        [$system, $user] = $this->capturedPrompts(SourceChannelMode::Highlights, ['language' => 'xx']);
+
+        $this->assertStringContainsString('xx', $system);
+        $this->assertStringContainsString('xx', $user);
+    }
+
+    public function test_prompt_without_language_has_no_explicit_language_sentence(): void
+    {
+        [$system, $user] = $this->capturedPrompts(SourceChannelMode::Highlights, null);
+
+        $this->assertStringContainsString("in the transcript's language", $system);
+        $this->assertStringNotContainsString('Do not use any other language', $system);
+        $this->assertStringNotContainsString('must be in', $user);
+    }
+
+    public function test_both_modes_state_the_target_length(): void
+    {
+        foreach ([SourceChannelMode::Highlights, SourceChannelMode::Fixed] as $mode) {
+            [$system] = $this->capturedPrompts($mode, ['language' => 'en']);
+
+            $this->assertStringContainsString('Aim for about 60 seconds per clip (acceptable 45', $system);
+            $this->assertStringContainsString('close to 60 seconds', $system);
+        }
+    }
 }
