@@ -117,7 +117,27 @@ class ClipSelectorTest extends TestCase
 
         $this->assertCount(1, $llm->captured);
         $this->assertCount(1, $clips);
-        $this->assertEqualsWithDelta(51.9, $clips[0]->end, 0.001);
+        $this->assertEqualsWithDelta(61.9, $clips[0]->end, 0.001);
+    }
+
+    public function test_it_extends_a_46_second_clip_toward_the_target_without_a_repair_call(): void
+    {
+        $channel = $this->channel(SourceChannelMode::Highlights, 60, 15);
+        $video = SourceVideo::factory()->create(['source_channel_id' => $channel->id]);
+        $utterances = [];
+        $cursor = 0.0;
+        foreach ([23.0, 23.0, 10.0, 10.0, 10.0, 10.0] as $i => $len) {
+            $utterances[] = new Utterance($i + 1, $cursor, $cursor + $len, 'Sentence '.($i + 1));
+            $cursor += $len;
+        }
+        $llm = new QueuedLlmManager([json_encode(['clips' => [$this->clipJson(1, 2)]])]);
+
+        $clips = $this->selector($llm)->select($channel, $video, $utterances);
+
+        $this->assertCount(1, $llm->captured);
+        $this->assertCount(1, $clips);
+        $this->assertGreaterThanOrEqual(60.0, $clips[0]->end - $clips[0]->start);
+        $this->assertLessThanOrEqual(75.5, $clips[0]->end - $clips[0]->start);
     }
 
     public function test_it_throws_after_three_invalid_responses(): void

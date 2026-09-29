@@ -107,7 +107,8 @@ class ClipValidatorTest extends TestCase
 
         $this->assertCount(1, $clips);
         $this->assertEqualsWithDelta(0.0, $clips[0]->start, 0.001);
-        $this->assertEqualsWithDelta(52.15, $clips[0]->end, 0.001);
+        // Fitted to 52 s (min), then extended by one more utterance to reach the 60 s target.
+        $this->assertEqualsWithDelta(62.65, $clips[0]->end, 0.001);
     }
 
     public function test_it_extends_backward_when_the_next_clip_blocks_forward_extension(): void
@@ -189,7 +190,8 @@ class ClipValidatorTest extends TestCase
         $this->assertCount(1, $clips);
         $this->assertSame(9, $clips[0]->score);
         $this->assertEqualsWithDelta(52.35, $clips[0]->start, 0.001);
-        $this->assertEqualsWithDelta(104.65, $clips[0]->end, 0.001);
+        // 52.5..104.5 fitted, then extended one utterance (to 115.0, 62.5 s) toward the target.
+        $this->assertEqualsWithDelta(115.15, $clips[0]->end, 0.001);
     }
 
     public function test_it_keeps_a_fixed_tail_that_was_extended_to_fit(): void
@@ -227,6 +229,61 @@ class ClipValidatorTest extends TestCase
         $clips = (new ClipValidator)->validate($raws, $this->utterances([50, 50, 12]), $this->fixed(), false);
 
         $this->assertCount(2, $clips);
+    }
+
+    public function test_it_extends_a_clip_below_target_forward_to_the_target(): void
+    {
+        // 46 s clip (ids 2..3 = 23 + 23), followed by free 10 s utterances.
+        $utterances = $this->utterances([23, 23, 10, 10, 10, 10, 10], 0.0);
+
+        $clips = (new ClipValidator(0.0))->validate([$this->raw(1, 2)], $utterances, $this->highlights());
+
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(0.0, $clips[0]->start, 0.001);
+        // 46 -> 56 -> 66 (>= 60, <= 75.5); stops there on an utterance boundary.
+        $this->assertEqualsWithDelta(66.0, $clips[0]->end, 0.001);
+    }
+
+    public function test_it_does_not_extend_into_the_next_clip_when_blocked(): void
+    {
+        $utterances = $this->utterances([23, 23, 20, 20, 20], 0.0);
+
+        $clips = (new ClipValidator(0.0))->validate([$this->raw(1, 2), $this->raw(3, 5)], $utterances, $this->highlights());
+
+        $this->assertCount(2, $clips);
+        $this->assertEqualsWithDelta(46.0, $clips[0]->end, 0.001);
+        $this->assertEqualsWithDelta(46.0, $clips[1]->start, 0.001);
+    }
+
+    public function test_it_leaves_a_clip_already_at_or_above_target_unchanged(): void
+    {
+        $utterances = $this->utterances([30, 30, 10, 10], 0.0);
+
+        $clips = (new ClipValidator(0.0))->validate([$this->raw(1, 2)], $utterances, $this->highlights());
+
+        $this->assertEqualsWithDelta(60.0, $clips[0]->end, 0.001);
+    }
+
+    public function test_target_extension_never_exceeds_max(): void
+    {
+        // 46 s clip, next utterance 40 s would give 86 s > 75.5: no extension.
+        $utterances = $this->utterances([23, 23, 40, 10], 0.0);
+
+        $clips = (new ClipValidator(0.0))->validate([$this->raw(1, 2)], $utterances, $this->highlights());
+
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(46.0, $clips[0]->end, 0.001);
+    }
+
+    public function test_fixed_tail_is_extended_toward_target_when_possible(): void
+    {
+        $raws = [$this->raw(1, 1, null), $this->raw(2, 2, null)];
+
+        $clips = (new ClipValidator(0.0))->validate($raws, $this->utterances([60, 46, 10, 10], 0.0), $this->fixed());
+
+        $this->assertCount(2, $clips);
+        $this->assertEqualsWithDelta(60.0, $clips[1]->start, 0.001);
+        $this->assertEqualsWithDelta(126.0, $clips[1]->end, 0.001);
     }
 
     public function test_it_falls_back_to_utterance_text_for_empty_title(): void

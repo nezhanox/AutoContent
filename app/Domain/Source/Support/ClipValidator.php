@@ -18,7 +18,9 @@ final class ClipValidator
      * Durations are never rejected: the LLM picks the moment, and each clip's boundaries are
      * fitted deterministically by whole utterances into [target - tolerance, target + tolerance]
      * (extend forward then backward when too short, trim from the end then the start when too
-     * long, without crossing neighbouring clips). Clips that cannot be fitted are dropped
+     * long, without crossing neighbouring clips). A clip that is still shorter than the target is
+     * then extended forward, one whole utterance at a time, until it reaches the target (never
+     * beyond max, never into the next clip, never backward). Clips that cannot be fitted are dropped
      * silently (except the Fixed-mode final tail, which may stay short if >= minTailSeconds),
      * so an empty list is a valid result. Score filtering and the maxClips cap run after fitting.
      *
@@ -66,6 +68,7 @@ final class ClipValidator
             $prevEnd = $item['endPos'];
 
             $fit = $this->fit($utterances, $item['startPos'], $item['endPos'], $lowerBound, $upperBound, $min, $max);
+            $fit[1] = $this->extendTowardTarget($utterances, $fit[0], $fit[1], $upperBound, (float) $constraints->targetSeconds, $max);
             $duration = $utterances[$fit[1]]->end - $utterances[$fit[0]]->start;
 
             if ($duration < $min && $isFixed && $finalWindow && $i === $last && $duration >= $constraints->minTailSeconds) {
@@ -123,6 +126,20 @@ final class ClipValidator
         }
 
         return $clips;
+    }
+
+    /**
+     * Extends the end forward by whole utterances until the duration reaches the target.
+     *
+     * @param  list<Utterance>  $u
+     */
+    private function extendTowardTarget(array $u, int $start, int $end, int $upper, float $target, float $max): int
+    {
+        while ($u[$end]->end - $u[$start]->start < $target && $end + 1 <= $upper && $u[$end + 1]->end - $u[$start]->start <= $max) {
+            $end++;
+        }
+
+        return $end;
     }
 
     /**
