@@ -100,6 +100,26 @@ class ClipSelectorTest extends TestCase
         $this->assertStringContainsString('Invalid response:', $llm->captured[1][3]['content']);
     }
 
+    public function test_it_fits_a_slightly_short_clip_without_a_repair_call(): void
+    {
+        $channel = $this->channel(SourceChannelMode::Highlights, 60, 15);
+        $video = SourceVideo::factory()->create(['source_channel_id' => $channel->id]);
+        $utterances = [];
+        $cursor = 0.0;
+        foreach ([10.0, 10.0, 10.0, 11.9, 10.0, 10.0, 10.0, 10.0] as $i => $len) {
+            $utterances[] = new Utterance($i + 1, $cursor, $cursor + $len, 'Sentence '.($i + 1));
+            $cursor += $len;
+        }
+        // ids 1..4 last 41.9s, below the 45s minimum: the validator must extend, not fail.
+        $llm = new QueuedLlmManager([json_encode(['clips' => [$this->clipJson(1, 4)]])]);
+
+        $clips = $this->selector($llm)->select($channel, $video, $utterances);
+
+        $this->assertCount(1, $llm->captured);
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(51.9, $clips[0]->end, 0.001);
+    }
+
     public function test_it_throws_after_three_invalid_responses(): void
     {
         $channel = $this->channel(SourceChannelMode::Highlights);

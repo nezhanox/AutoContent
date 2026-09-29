@@ -99,20 +99,62 @@ class ClipValidatorTest extends TestCase
         );
     }
 
-    public function test_it_rejects_too_long_clip(): void
+    public function test_it_extends_a_too_short_clip_forward_to_reach_min(): void
     {
-        $this->expectException(InvalidClipSelectionException::class);
-        $this->expectExceptionMessage('must be between');
+        $utterances = $this->utterances(array_fill(0, 12, 10));
 
-        (new ClipValidator)->validate([$this->raw(1, 1)], $this->utterances([80, 80]), $this->highlights());
+        $clips = (new ClipValidator)->validate([$this->raw(1, 4)], $utterances, $this->highlights());
+
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(0.0, $clips[0]->start, 0.001);
+        $this->assertEqualsWithDelta(52.15, $clips[0]->end, 0.001);
     }
 
-    public function test_it_rejects_too_short_non_tail_clip_in_highlights(): void
+    public function test_it_extends_backward_when_the_next_clip_blocks_forward_extension(): void
     {
-        $this->expectException(InvalidClipSelectionException::class);
-        $this->expectExceptionMessage('must be between');
+        $utterances = $this->utterances(array_fill(0, 12, 10));
 
-        (new ClipValidator)->validate([$this->raw(1, 1)], $this->utterances([20, 20]), $this->highlights());
+        $clips = (new ClipValidator)->validate([$this->raw(4, 7), $this->raw(8, 12)], $utterances, $this->highlights());
+
+        $this->assertCount(2, $clips);
+        $this->assertEqualsWithDelta(20.85, $clips[0]->start, 0.001);
+        $this->assertEqualsWithDelta(73.15, $clips[0]->end, 0.001);
+        $this->assertGreaterThanOrEqual($clips[0]->end, $clips[1]->start);
+    }
+
+    public function test_it_drops_a_short_clip_that_cannot_be_extended_either_way(): void
+    {
+        $utterances = $this->utterances(array_fill(0, 12, 10));
+
+        $clips = (new ClipValidator)->validate([$this->raw(1, 2), $this->raw(3, 8)], $utterances, $this->highlights());
+
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(20.85, $clips[0]->start, 0.001);
+    }
+
+    public function test_it_trims_a_too_long_clip_from_the_end(): void
+    {
+        $utterances = $this->utterances(array_fill(0, 12, 10));
+
+        $clips = (new ClipValidator)->validate([$this->raw(1, 10)], $utterances, $this->highlights());
+
+        $this->assertCount(1, $clips);
+        $this->assertEqualsWithDelta(0.0, $clips[0]->start, 0.001);
+        $this->assertEqualsWithDelta(73.15, $clips[0]->end, 0.001);
+    }
+
+    public function test_it_drops_an_unfittable_clip_silently(): void
+    {
+        $clips = (new ClipValidator)->validate([$this->raw(1, 1)], $this->utterances([80, 80]), $this->highlights());
+
+        $this->assertSame([], $clips);
+    }
+
+    public function test_it_returns_empty_when_no_short_clip_can_be_fitted(): void
+    {
+        $clips = (new ClipValidator)->validate([$this->raw(1, 1)], $this->utterances([20]), $this->highlights());
+
+        $this->assertSame([], $clips);
     }
 
     public function test_it_rejects_missing_score_in_highlights(): void
@@ -134,6 +176,32 @@ class ClipValidatorTest extends TestCase
         $this->assertLessThan($clips[1]->start, $clips[0]->start);
     }
 
+    public function test_it_ranks_and_caps_after_fitting(): void
+    {
+        $utterances = $this->utterances(array_fill(0, 12, 10));
+
+        $clips = (new ClipValidator)->validate(
+            [$this->raw(1, 4, 5), $this->raw(6, 9, 9)],
+            $utterances,
+            $this->highlights(1, 6),
+        );
+
+        $this->assertCount(1, $clips);
+        $this->assertSame(9, $clips[0]->score);
+        $this->assertEqualsWithDelta(52.35, $clips[0]->start, 0.001);
+        $this->assertEqualsWithDelta(104.65, $clips[0]->end, 0.001);
+    }
+
+    public function test_it_keeps_a_fixed_tail_that_was_extended_to_fit(): void
+    {
+        $raws = [$this->raw(1, 1, null), $this->raw(2, 2, null), $this->raw(3, 3, null)];
+
+        $clips = (new ClipValidator)->validate($raws, $this->utterances([50, 50, 30, 20]), $this->fixed());
+
+        $this->assertCount(3, $clips);
+        $this->assertEqualsWithDelta(151.65, $clips[2]->end, 0.001);
+    }
+
     public function test_it_keeps_fixed_tail_when_long_enough(): void
     {
         $raws = [$this->raw(1, 1, null), $this->raw(2, 2, null), $this->raw(3, 3, null)];
@@ -152,13 +220,13 @@ class ClipValidatorTest extends TestCase
         $this->assertCount(2, $clips);
     }
 
-    public function test_it_rejects_short_fixed_tail_when_not_final_window(): void
+    public function test_it_drops_short_fixed_tail_when_not_final_window(): void
     {
-        $this->expectException(InvalidClipSelectionException::class);
-
         $raws = [$this->raw(1, 1, null), $this->raw(2, 2, null), $this->raw(3, 3, null)];
 
-        (new ClipValidator)->validate($raws, $this->utterances([50, 50, 12]), $this->fixed(), false);
+        $clips = (new ClipValidator)->validate($raws, $this->utterances([50, 50, 12]), $this->fixed(), false);
+
+        $this->assertCount(2, $clips);
     }
 
     public function test_it_falls_back_to_utterance_text_for_empty_title(): void
