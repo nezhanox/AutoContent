@@ -14,16 +14,28 @@ class PollSourceChannelsCommand extends Command
 
     public function handle(): int
     {
+        $channelOption = $this->option('channel');
+
+        if ($channelOption !== null && ! preg_match('/\A[1-9][0-9]*\z/', (string) $channelOption)) {
+            $this->error('The --channel option must be a positive integer.');
+
+            return self::FAILURE;
+        }
+
         $query = SourceChannel::query()->where('is_active', true);
 
-        if ($this->option('channel') !== null) {
-            $query->whereKey((int) $this->option('channel'));
+        if ($channelOption !== null) {
+            $query->whereKey((int) $channelOption);
         }
 
         $count = 0;
         foreach ($query->pluck('id') as $channelId) {
             DiscoverSourceVideosJob::dispatch($channelId);
             $count++;
+        }
+
+        if ($count === 0 && $channelOption !== null) {
+            $this->warn("No active source channel matched --channel={$channelOption}.");
         }
 
         $this->info("Dispatched {$count} discovery job(s).");

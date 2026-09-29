@@ -53,4 +53,31 @@ class PollSourceChannelsCommandTest extends TestCase
 
         Queue::assertNothingPushed();
     }
+
+    public function test_it_rejects_a_non_positive_integer_channel_option(): void
+    {
+        SourceChannel::factory()->create();
+
+        foreach (['abc', '0', '-1', '1.5'] as $value) {
+            $this->artisan('source:poll', ['--channel' => $value])
+                ->expectsOutputToContain('--channel')
+                ->assertExitCode(1);
+        }
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_it_warns_when_the_requested_channel_is_unknown_or_inactive(): void
+    {
+        $inactive = SourceChannel::factory()->create(['is_active' => false]);
+
+        foreach ([9999, $inactive->id] as $id) {
+            $this->artisan('source:poll', ['--channel' => $id])
+                ->expectsOutputToContain('No active source channel matched')
+                ->expectsOutputToContain('Dispatched 0 discovery job(s).')
+                ->assertExitCode(0);
+        }
+
+        Queue::assertNothingPushed();
+    }
 }

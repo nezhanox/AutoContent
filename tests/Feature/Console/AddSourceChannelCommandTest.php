@@ -159,4 +159,48 @@ class AddSourceChannelCommandTest extends TestCase
 
         $this->assertSame(0, SourceChannel::count());
     }
+
+    public function test_it_rejects_empty_string_options_without_calling_the_downloader(): void
+    {
+        $project = ContentProject::factory()->create();
+        $downloader = new class implements YoutubeDownloaderInterface
+        {
+            public int $calls = 0;
+
+            public function listRecent(string $channelUrl, int $limit): array
+            {
+                return [];
+            }
+
+            public function download(string $youtubeId, string $destinationPath): void {}
+
+            public function channelName(string $channelUrl): ?string
+            {
+                $this->calls++;
+
+                return null;
+            }
+        };
+        $this->app->instance(YoutubeDownloaderInterface::class, $downloader);
+
+        foreach (['--mode', '--framing', '--target', '--tolerance', '--max-clips', '--min-score', '--max-source-minutes'] as $option) {
+            $this->artisan('source:add', ['url' => 'https://youtube.com/@x', '--project' => $project->id, $option => ''])
+                ->expectsOutputToContain($option)
+                ->assertExitCode(1);
+        }
+
+        $this->assertSame(0, $downloader->calls);
+        $this->assertSame(0, SourceChannel::count());
+    }
+
+    public function test_it_rejects_a_url_with_a_trailing_newline(): void
+    {
+        $project = ContentProject::factory()->create();
+
+        $this->artisan('source:add', ['url' => "https://youtube.com/@x\n", '--project' => $project->id])
+            ->expectsOutputToContain('http')
+            ->assertExitCode(1);
+
+        $this->assertSame(0, SourceChannel::count());
+    }
 }

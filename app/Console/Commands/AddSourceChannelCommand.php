@@ -44,17 +44,19 @@ class AddSourceChannelCommand extends Command
         ], [
             // The url is later passed to yt-dlp as a bare argument, so anything
             // not starting with http(s):// (e.g. "--exec=...") must be rejected.
-            'url' => ['required', 'string', 'regex:/^https?:\/\/\S+$/i'],
+            'url' => ['required', 'string', 'regex:/^https?:\/\/\S+\z/i'],
             'project' => ['required', 'integer', Rule::exists('content_projects', 'id')],
-            'mode' => [Rule::in(array_column(SourceChannelMode::cases(), 'value'))],
-            'framing' => [Rule::in(array_column(SourceChannelFraming::cases(), 'value'))],
-            'target' => ['integer', 'min:1', 'max:3600'],
-            'tolerance' => ['integer', 'min:1', 'max:3600'],
-            'max-clips' => ['integer', 'min:1', 'max:50'],
-            'min-score' => ['integer', 'min:1', 'max:10'],
-            'max-source-minutes' => ['integer', 'min:1', 'max:1440'],
+            'mode' => ['required', Rule::in(array_column(SourceChannelMode::cases(), 'value'))],
+            'framing' => ['required', Rule::in(array_column(SourceChannelFraming::cases(), 'value'))],
+            'target' => ['required', 'integer', 'min:1', 'max:3600'],
+            'tolerance' => ['required', 'integer', 'min:1', 'max:3600'],
+            'max-clips' => ['required', 'integer', 'min:1', 'max:50'],
+            'min-score' => ['required', 'integer', 'min:1', 'max:10'],
+            'max-source-minutes' => ['required', 'integer', 'min:1', 'max:1440'],
         ], [
             'url.regex' => 'The url must start with http:// or https:// and contain no whitespace.',
+            'mode.required' => 'The --mode option must not be empty.',
+            'framing.required' => 'The --framing option must not be empty.',
             'project.required' => 'The --project option is required (ContentProject id).',
             'project.integer' => 'The --project option must be a ContentProject id.',
             'project.exists' => 'ContentProject [:input] does not exist.',
