@@ -24,6 +24,12 @@ RUN mkdir -p /usr/share/fonts/truetype/oswald \
         -o /usr/share/fonts/truetype/oswald/Oswald-Variable.ttf \
     && fc-cache -f
 
+# Default 128M is too tight for downloading full-size stock video/image
+# assets in CollectVideoAssetsService before they're streamed to disk — hit
+# "Allowed memory size exhausted" fatal errors that killed the whole
+# queue:work process (container exit), stalling every video behind it.
+RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/memory-limit.ini
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html

@@ -28,7 +28,10 @@ class GenerateVoiceoverJob implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 200;
 
-    public function __construct(public readonly int $videoId) {}
+    public function __construct(public readonly int $videoId)
+    {
+        $this->onQueue('render');
+    }
 
     public function uniqueId(): string
     {

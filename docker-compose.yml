@@ -66,6 +66,7 @@ services:
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
+    restart: unless-stopped
     volumes:
       - .:/var/www/html
       - whisper_models:/root/.cache/huggingface
@@ -87,6 +88,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     command: php artisan horizon
+    restart: unless-stopped
     volumes:
       - .:/var/www/html
     env_file: .env
