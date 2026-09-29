@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
         python3-pip \
     && docker-php-ext-install pdo pdo_pgsql pgsql bcmath zip intl pcntl \
     && pecl install redis && docker-php-ext-enable redis \
-    && pip3 install --no-cache-dir --break-system-packages faster-whisper \
+    && pip3 install --no-cache-dir --break-system-packages faster-whisper yt-dlp \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Subtitle font for FfmpegVideoRenderer/libass (config('render.subtitles.font')).

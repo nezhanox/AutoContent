@@ -7,6 +7,7 @@ use App\Providers\HorizonServiceProvider;
 use App\Providers\LlmServiceProvider;
 use App\Providers\PublishingServiceProvider;
 use App\Providers\RenderServiceProvider;
+use App\Providers\SourceServiceProvider;
 use App\Providers\TranscriptionServiceProvider;
 use App\Providers\TtsServiceProvider;
 
@@ -20,4 +21,5 @@ return [
     TranscriptionServiceProvider::class,
     RenderServiceProvider::class,
     PublishingServiceProvider::class,
+    SourceServiceProvider::class,
 ];
