@@ -99,6 +99,7 @@ final class ClipValidator
             if ($title === '') {
                 $title = mb_substr($first->text, 0, 60);
             }
+            $title = mb_substr($title, 0, 255);
 
             $score = $item['raw']['score'] ?? null;
             $clips[] = new Clip(

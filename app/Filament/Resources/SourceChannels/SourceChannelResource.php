@@ -5,6 +5,7 @@ namespace App\Filament\Resources\SourceChannels;
 use App\Filament\Resources\SourceChannels\Pages\CreateSourceChannel;
 use App\Filament\Resources\SourceChannels\Pages\EditSourceChannel;
 use App\Filament\Resources\SourceChannels\Pages\ListSourceChannels;
+use App\Filament\Resources\SourceChannels\RelationManagers\SourceVideosRelationManager;
 use App\Filament\Resources\SourceChannels\Schemas\SourceChannelForm;
 use App\Filament\Resources\SourceChannels\Tables\SourceChannelsTable;
 use App\Models\SourceChannel;
@@ -36,7 +37,7 @@ class SourceChannelResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            SourceVideosRelationManager::class,
         ];
     }
 

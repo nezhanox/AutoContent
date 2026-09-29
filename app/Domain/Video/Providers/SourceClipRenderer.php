@@ -63,7 +63,7 @@ final class SourceClipRenderer implements VideoRendererInterface
                     ."[bgb][fgs]overlay=({$width}-w)/2:({$height}-h)/2,setsar=1,fps={$fps},ass={$ass}[v]";
 
             $filter = $sourceProbe['has_audio']
-                ? $videoFilter.';[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[a]'
+                ? $videoFilter.';[0:a]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]'
                 : $videoFilter;
 
             $outputPath = "{$workDir}/output.mp4";

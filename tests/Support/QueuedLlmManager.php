@@ -17,8 +17,14 @@ final class QueuedLlmManager implements LlmManagerInterface
     /** @var list<string> */
     public array $purposes = [];
 
-    /** @param list<string> $responses */
-    public function __construct(private array $responses) {}
+    /** @var list<int|null> */
+    public array $maxTokens = [];
+
+    /**
+     * @param  list<string>  $responses
+     * @param  list<array<string, mixed>>  $metadata  per-response metadata, same order as $responses
+     */
+    public function __construct(private array $responses, private array $metadata = []) {}
 
     public function resolve(?ContentProject $project, string $purpose, ?string $providerOverride = null, ?string $modelOverride = null): ResolvedLlmTarget
     {
@@ -29,11 +35,12 @@ final class QueuedLlmManager implements LlmManagerInterface
     {
         $this->captured[] = $messages;
         $this->purposes[] = $purpose;
+        $this->maxTokens[] = $maxTokens;
 
         if ($this->responses === []) {
             throw new RuntimeException('QueuedLlmManager: no more queued responses.');
         }
 
-        return new LlmResponse(array_shift($this->responses), 'fake', 'fake-model', 10, 10);
+        return new LlmResponse(array_shift($this->responses), 'fake', 'fake-model', 10, 10, array_shift($this->metadata) ?? []);
     }
 }

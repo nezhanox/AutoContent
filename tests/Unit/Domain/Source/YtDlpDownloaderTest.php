@@ -157,4 +157,26 @@ class YtDlpDownloaderTest extends TestCase
     {
         $this->assertInstanceOf(YtDlpDownloader::class, app(YoutubeDownloaderInterface::class));
     }
+
+    public function test_it_terminates_options_before_urls_and_uses_the_list_timeout_for_listing(): void
+    {
+        config(['clips.yt_dlp_list_timeout' => 33]);
+        Process::fake(['*' => Process::result("abc123|||T|||10\n")]);
+
+        $downloader = new YtDlpDownloader;
+        $downloader->listRecent('https://www.youtube.com/@foo', 5);
+        $downloader->channelName('https://www.youtube.com/@foo');
+        $downloader->download('abc123', '/tmp/out.mp4');
+
+        Process::assertRan(fn ($p) => $p->timeout === 33
+            && $p->command[count($p->command) - 2] === '--'
+            && str_ends_with(end($p->command), '/@foo/videos')
+            && in_array('--playlist-end', $p->command, true));
+        Process::assertRan(fn ($p) => $p->timeout === 33
+            && $p->command[count($p->command) - 2] === '--'
+            && in_array('--playlist-items', $p->command, true));
+        Process::assertRan(fn ($p) => $p->timeout === 100
+            && $p->command[count($p->command) - 2] === '--'
+            && end($p->command) === 'https://www.youtube.com/watch?v=abc123');
+    }
 }

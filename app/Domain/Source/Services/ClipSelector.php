@@ -4,6 +4,7 @@ namespace App\Domain\Source\Services;
 
 use App\Domain\Llm\LlmManagerInterface;
 use App\Domain\Source\Exceptions\ClipSelectionFailedException;
+use App\Domain\Source\Exceptions\InvalidClipSelectionException;
 use App\Domain\Source\Support\Clip;
 use App\Domain\Source\Support\ClipConstraints;
 use App\Domain\Source\Support\ClipMerger;
@@ -81,9 +82,14 @@ final class ClipSelector
                 messages: $messages,
                 responseSchema: $this->schema(),
                 temperature: 0.3,
+                maxTokens: (int) config('clips.max_output_tokens', 8192),
             );
 
             try {
+                if (in_array($response->metadata['finish_reason'] ?? null, ['length', 'max_tokens'], true)) {
+                    throw new InvalidClipSelectionException('Response was truncated (output token limit). Return fewer clips.');
+                }
+
                 $data = json_decode($response->content, true, flags: JSON_THROW_ON_ERROR);
 
                 if (! is_array($data) || ! isset($data['clips']) || ! is_array($data['clips'])) {

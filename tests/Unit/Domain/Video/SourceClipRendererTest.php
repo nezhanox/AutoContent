@@ -115,7 +115,7 @@ class SourceClipRendererTest extends TestCase
                 && $t !== false && $command[$t + 1] === '60'
                 && str_contains($filter, 'boxblur')
                 && str_contains($filter, 'overlay')
-                && str_contains($filter, 'loudnorm')
+                && str_contains($filter, 'loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]')
                 && str_contains($filter, 'ass=')
                 && in_array('[a]', $command, true);
         });

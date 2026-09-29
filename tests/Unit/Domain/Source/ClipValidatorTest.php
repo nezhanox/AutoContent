@@ -167,4 +167,13 @@ class ClipValidatorTest extends TestCase
 
         $this->assertSame('Utterance 1', $clips[0]->title);
     }
+
+    public function test_it_caps_the_title_at_255_characters(): void
+    {
+        $utterances = $this->utterances(array_fill(0, 12, 10));
+
+        $clips = (new ClipValidator)->validate([$this->raw(2, 7, 8, str_repeat('a', 300))], $utterances, $this->highlights());
+
+        $this->assertSame(255, mb_strlen($clips[0]->title));
+    }
 }

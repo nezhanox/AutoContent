@@ -16,10 +16,11 @@ final class YtDlpDownloader implements YoutubeDownloaderInterface
             '--flat-playlist',
             '--playlist-end', (string) $limit,
             '--print', '%(id)s|||%(title)s|||%(duration)s',
+            '--',
             $this->normalizeChannelUrl($channelUrl),
         );
 
-        $result = Process::timeout(config('clips.yt_dlp_timeout'))->run($command);
+        $result = Process::timeout(config('clips.yt_dlp_list_timeout'))->run($command);
 
         if ($result->failed()) {
             throw new RuntimeException(
@@ -64,6 +65,7 @@ final class YtDlpDownloader implements YoutubeDownloaderInterface
             '--no-playlist',
             '--no-progress',
             '-o', $destinationPath,
+            '--',
             'https://www.youtube.com/watch?v='.$youtubeId,
         );
 
@@ -84,11 +86,12 @@ final class YtDlpDownloader implements YoutubeDownloaderInterface
             '--flat-playlist',
             '--playlist-items', '1',
             '--print', '%(playlist_channel,playlist_uploader)s',
+            '--',
             $this->normalizeChannelUrl($channelUrl),
         );
 
         try {
-            $result = Process::timeout(config('clips.yt_dlp_timeout'))->run($command);
+            $result = Process::timeout(config('clips.yt_dlp_list_timeout'))->run($command);
         } catch (\Throwable) {
             return null;
         }

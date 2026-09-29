@@ -150,4 +150,66 @@ class FfprobeVideoQualityCheckerTest extends TestCase
         $this->assertFalse($result->passed);
         $this->assertFalse($result->checks['not_excessively_black']);
     }
+
+    public function test_it_streams_the_rendered_file_into_the_temp_file_without_a_full_load(): void
+    {
+        $disk = Storage::fake(config('filesystems.default'));
+        $video = $this->buildRenderedVideo();
+        $disk->put($video->file_path, 'streamed-bytes-123');
+
+        $seen = null;
+        Process::fake(function ($process) use (&$seen) {
+            if (in_array('-show_streams', $process->command, true)) {
+                $seen = file_get_contents(end($process->command));
+
+                return Process::result(output: json_encode([
+                    'format' => ['duration' => '9.20'],
+                    'streams' => [
+                        ['codec_type' => 'video', 'width' => 1080, 'height' => 1920],
+                        ['codec_type' => 'audio'],
+                    ],
+                ]));
+            }
+
+            return Process::result();
+        });
+
+        (new FfprobeVideoQualityChecker)->check($video->fresh('scenes'));
+
+        $this->assertSame('streamed-bytes-123', $seen);
+    }
+
+    public function test_it_throws_when_the_rendered_file_stream_is_unavailable(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        Process::fake();
+        $video = $this->buildRenderedVideo();
+        Storage::disk(config('filesystems.default'))->delete($video->file_path);
+
+        $this->expectException(\RuntimeException::class);
+
+        (new FfprobeVideoQualityChecker)->check($video);
+    }
+
+    public function test_it_scales_the_blackdetect_timeout_with_the_video_duration(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        config(['render.timeout' => 180]);
+        $this->fakeProbeAndBlackdetect(['format' => ['duration' => '3000.0']]);
+
+        (new FfprobeVideoQualityChecker)->check($this->buildRenderedVideo());
+
+        Process::assertRan(fn ($p) => in_array('blackdetect=d=1:pic_th=0.98', $p->command, true) && $p->timeout === 6000);
+    }
+
+    public function test_it_keeps_the_configured_blackdetect_timeout_for_short_videos(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        config(['render.timeout' => 180]);
+        $this->fakeProbeAndBlackdetect();
+
+        (new FfprobeVideoQualityChecker)->check($this->buildRenderedVideo());
+
+        Process::assertRan(fn ($p) => in_array('blackdetect=d=1:pic_th=0.98', $p->command, true) && $p->timeout === 180);
+    }
 }

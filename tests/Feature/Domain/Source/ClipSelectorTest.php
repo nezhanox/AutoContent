@@ -156,4 +156,32 @@ class ClipSelectorTest extends TestCase
         $this->assertStringContainsString('60', $system);
         $this->assertStringContainsString('consecutive', $system);
     }
+
+    public function test_it_passes_the_configured_output_token_budget_to_the_llm(): void
+    {
+        config(['clips.max_output_tokens' => 6000]);
+        $channel = $this->channel(SourceChannelMode::Highlights);
+        $video = SourceVideo::factory()->create(['source_channel_id' => $channel->id]);
+        $llm = new QueuedLlmManager([json_encode(['clips' => [$this->clipJson(3, 8)]])]);
+
+        $this->selector($llm)->select($channel, $video, $this->utterances(12));
+
+        $this->assertSame([6000], $llm->maxTokens);
+    }
+
+    public function test_it_asks_for_fewer_clips_when_the_response_was_truncated(): void
+    {
+        $channel = $this->channel(SourceChannelMode::Highlights);
+        $video = SourceVideo::factory()->create(['source_channel_id' => $channel->id]);
+        $llm = new QueuedLlmManager(
+            ['{"clips": [{"start_id": 3', json_encode(['clips' => [$this->clipJson(3, 8)]])],
+            [['finish_reason' => 'length'], []],
+        );
+
+        $clips = $this->selector($llm)->select($channel, $video, $this->utterances(12));
+
+        $this->assertCount(1, $clips);
+        $this->assertCount(2, $llm->captured);
+        $this->assertStringContainsString('truncated', end($llm->captured[1])['content']);
+    }
 }

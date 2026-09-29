@@ -5,8 +5,10 @@ namespace App\Domain\Video\Providers;
 use App\Domain\Video\QualityCheckResult;
 use App\Domain\Video\VideoQualityCheckerInterface;
 use App\Models\Video;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
 {
@@ -17,7 +19,7 @@ final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
         $tempPath = $stub.'.mp4';
 
         try {
-            file_put_contents($tempPath, $disk->get($video->file_path));
+            $this->copyToTemp($disk, $video->file_path, $tempPath);
             $probe = $this->probe($tempPath);
             $expectedDuration = $this->expectedDuration($video);
 
@@ -28,7 +30,7 @@ final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
                     && $probe['height'] === config('render.resolution.height'),
                 'duration_within_tolerance' => abs($probe['duration'] - $expectedDuration)
                     <= config('render.quality_check.duration_tolerance'),
-                'not_excessively_black' => ! $this->hasExcessiveBlackFrames($tempPath),
+                'not_excessively_black' => ! $this->hasExcessiveBlackFrames($tempPath, $probe['duration']),
             ];
 
             return new QualityCheckResult(
@@ -89,9 +91,39 @@ final class FfprobeVideoQualityChecker implements VideoQualityCheckerInterface
         ];
     }
 
-    private function hasExcessiveBlackFrames(string $path): bool
+    /**
+     * Stream the rendered file into a temp file instead of loading it into memory (whole-mode renders can be hundreds of MB).
+     */
+    private function copyToTemp(Filesystem $disk, string $path, string $tempPath): void
     {
-        $result = Process::timeout(config('render.timeout'))->run([
+        $source = $disk->readStream($path);
+
+        if (! is_resource($source)) {
+            throw new RuntimeException("Unable to open rendered file [{$path}] for quality check.");
+        }
+
+        $target = fopen($tempPath, 'wb');
+
+        if ($target === false) {
+            fclose($source);
+
+            throw new RuntimeException("Unable to open temp file [{$tempPath}] for quality check.");
+        }
+
+        try {
+            stream_copy_to_stream($source, $target);
+        } finally {
+            fclose($source);
+            fclose($target);
+        }
+    }
+
+    private function hasExcessiveBlackFrames(string $path, float $duration): bool
+    {
+        // blackdetect decodes the whole file, so the time budget must scale with the video length.
+        $timeout = max((int) config('render.timeout'), (int) ceil($duration * 2));
+
+        $result = Process::timeout($timeout)->run([
             config('render.ffmpeg_binary'), '-i', $path,
             '-vf', 'blackdetect=d=1:pic_th=0.98', '-an', '-f', 'null', '-',
         ]);
