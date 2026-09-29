@@ -17,7 +17,7 @@ class Video extends Model
         'content_project_id', 'content_idea_id', 'script_id', 'title', 'description',
         'status', 'duration', 'width', 'height', 'file_path', 'thumbnail_path',
         'subtitle_id', 'music_asset_id', 'quality_passed', 'quality_report',
-        'metadata', 'error_message', 'failed_stage',
+        'metadata', 'error_message', 'failed_stage', 'source_clip_id',
     ];
 
     protected function casts(): array
@@ -83,6 +83,11 @@ class Video extends Model
     public function script(): BelongsTo
     {
         return $this->belongsTo(Script::class);
+    }
+
+    public function sourceClip(): BelongsTo
+    {
+        return $this->belongsTo(SourceClip::class);
     }
 
     public function scenes(): HasMany
