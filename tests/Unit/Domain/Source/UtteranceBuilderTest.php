@@ -90,4 +90,19 @@ final class UtteranceBuilderTest extends TestCase
         $this->assertSame('He said "stop."', $utterances[0]->text);
         $this->assertSame('Then he left.', $utterances[1]->text);
     }
+
+    public function test_it_closes_utterance_on_curly_quotes_around_sentence_ending(): void
+    {
+        $builder = new UtteranceBuilder(pauseSeconds: 0.7, maxSeconds: 15.0);
+        $segments = [
+            ['start' => 0.0, 'end' => 1.0, 'text' => "He said \u{201C}stop.\u{201D}"],
+            ['start' => 1.0, 'end' => 2.0, 'text' => 'Then he left.'],
+        ];
+
+        $utterances = $builder->build($segments);
+
+        $this->assertCount(2, $utterances);
+        $this->assertSame("He said \u{201C}stop.\u{201D}", $utterances[0]->text);
+        $this->assertSame('Then he left.', $utterances[1]->text);
+    }
 }

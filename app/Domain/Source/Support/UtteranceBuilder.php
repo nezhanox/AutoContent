@@ -41,7 +41,7 @@ final class UtteranceBuilder
             $start ??= (float) $segment['start'];
             $end = (float) $segment['end'];
             $parts[] = $text;
-            if (preg_match('/[.!?…]["\'"»)\]]*$/u', $text) === 1 || ($end - $start) >= $this->maxSeconds) {
+            if (preg_match('/[.!?…][\x{201D}\x{201C}\x{2019}\x{2018}"\'»)\]]*$/u', $text) === 1 || ($end - $start) >= $this->maxSeconds) {
                 $flush();
             }
         }
