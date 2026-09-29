@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\LlmUsageLog;
 use App\Models\MediaAsset;
 use App\Models\Publication;
+use App\Models\SourceChannel;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoMetric;
@@ -20,7 +21,7 @@ class FilamentResourcesTest extends TestCase
     private array $resourceSlugs = [
         'content-projects', 'content-ideas', 'scripts', 'videos', 'video-scenes',
         'media-assets', 'voiceovers', 'social-accounts', 'publications', 'video-metrics',
-        'llm-usage-logs',
+        'llm-usage-logs', 'source-channels',
     ];
 
     public function test_every_resource_index_page_is_reachable_by_an_admin(): void
@@ -59,5 +60,7 @@ class FilamentResourcesTest extends TestCase
         VideoMetric::factory()->create(['publication_id' => $publication->id]);
 
         LlmUsageLog::factory()->create(['content_project_id' => $video->content_project_id]);
+
+        SourceChannel::factory()->create(['content_project_id' => $video->content_project_id]);
     }
 }
